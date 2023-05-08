@@ -1,3 +1,7 @@
+## PyPitzer
+
+authors: Yiping Liu, Thomas Wagner, Tobias Fußwinkel
+
 ## Introduction
 
 This package is for low-temperature themodynamic modeling with the accurate Pitzer model
