@@ -16,7 +16,7 @@ in this modeling / quantification process.
 
 To quantify fluid inclusion data, you the following necessary data:
 
-* measure microthemometry
+* microthemometric data
     * accurate last solid phase (e.g. NaCl·H2O)
     * melting temperatre of this last phase (Tm)
 * element/Na ratios from LA-ICP-MS analysis
