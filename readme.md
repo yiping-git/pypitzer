@@ -1,6 +1,10 @@
 ## PyPitzer
 
+[![made-with-python](https://img.shields.io/badge/Made%20with-Python-1f425f.svg)](https://www.python.org/)
+[![PyPi license](https://badgen.net/pypi/license/pip/)](https://pypi.org/project/pip/)
+
 [![DOI](https://zenodo.org/badge/636408216.svg)](https://zenodo.org/badge/latestdoi/636408216)
+
 
 authors: Yiping Liu, Thomas Wagner, Tobias Fußwinkel
 
@@ -20,7 +24,17 @@ To quantify fluid inclusion data, you the following necessary data:
 
 ## Installation
 
-_preparing_...
+pip install:
+
+```python
+pip install pypitzer
+```
+
+conda install:
+
+```python
+conda install pypitzer
+```
 
 ## Example
 
