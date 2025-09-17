@@ -77,5 +77,6 @@ the output will be:
 1.84525981, 5.53577942
 ```
 in molality.
+
 ## Cite this package
-...
+Liu, Y., Wagner, T., & Fußwinkel, T. (2024). An integrated approach for quantifying fluid inclusion data combining microthermometry, LA-ICP-MS, and thermodynamic modeling. Chemical Geology, 644, 121863.
