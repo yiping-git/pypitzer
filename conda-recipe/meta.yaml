@@ -1,0 +1,28 @@
+package:
+  name: pypitzer
+  version: 0.0.1
+
+source:
+  path: ../
+
+build:
+  noarch: python
+  script: python -m pip install . --no-deps --ignore-installed -vv
+
+dependencies:
+  - python >=3.7
+  - pip
+
+about:
+  home: https://github.com/pypitzer/pypitzer
+  license: MIT
+  license_file: ../LICENSE
+  summary: "A library for thermodynamic modeling with the Pitzer model and its application in quantification of fluid inclusion data."
+  description: |
+    A library for thermodynamic modeling with the Pitzer model and its application in quantification of fluid inclusion data.
+  dev_url: https://github.com/pypitzer/pypitzer
+  doc_url: https://github.com/pypitzer/pypitzer
+
+extra:
+  recipe-maintainers:
+    - yiping-git
