@@ -31,8 +31,8 @@ class FluidPitzer:
         Initiate the solution.
         :param x0: initiate values of x(x1, x2), namely value of mNa and mCl.
         :param species: define species of a solution.
-        :param t: melting temperature.
-        :param database: which database to use.
+        :param t: melting temperature, [°C].
+        :param database: str, which database to use.
         :param solids: define which solid(s) to be used for building solubility equilibrium.
         """
         self.x0 = x0
