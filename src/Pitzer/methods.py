@@ -3,7 +3,7 @@
 # Description: This script calculates the average of a list of numbers.
 # Version: 1.0
 # Last Modified: May 7, 2023
-
+import json
 import numpy as np
 import pandas as pd
 import itertools
@@ -12,25 +12,31 @@ from sympy import *
 from functools import lru_cache
 
 
-from database.marion_binary import marion_binary
-from database.marion_ternary import marion_ternary
+from src.database.marion_binary import marion_binary
+from src.database.marion_ternary import marion_ternary
+from src.database.spencer_revised_binary import spencer_binary
+from src.database.spencer_revised_ternary import spencer_ternary
+from src.database.spencer_revised_chemical_potential import spencer_chemical_potential_db
+from src.database.marion_chemical_potential import marion_chemical_potential_db
+from src.database.lassin_chemical_potential import lassin_chemical_potential_db
+from src.database.solid_data import solids
+from src.database.lassin_binary import lassin_binary
+from src.database.lassin_ternary import lassin_ternary
+from src.database.lassin_chemical_potentials import lassin_chemical_potential_db
+from src.database.solid_data import solids
 
-
-from database.spencer_revised_binary import spencer_binary
-from database.spencer_revised_ternary import spencer_ternary
-from database.spencer_revised_chemical_potential import spencer_chemical_potential_db
-from database.marion_chemical_potential import marion_chemical_potential_db
-from database.lassin_chemical_potential import lassin_chemical_potential_db
-from database.solid_data import solids
-from public.low_level import find_pair
-from database.lassin_binary import lassin_binary
-from database.lassin_ternary import lassin_ternary
-from database.lassin_chemical_potentials import lassin_chemical_potential_db
-from database.solid_data import solids
-from public.low_level import find_pair
-from public.j_x import compute_j_jp
+from src.public.low_level import find_pair
+from src.public.j_x import compute_j_jp
+from src.public.low_level import find_pair
 
 import functools
+from pathlib import Path
+
+here = Path(__file__).resolve().parent.parent
+
+db_json_path = here / "database/pypitzer_parameter.json"
+with open(db_json_path,"r",encoding="utf-8") as f:
+    parameter_db = json.load(f)
 
 
 # to make dictionary harshable
@@ -126,6 +132,7 @@ def binary_parameters_ready(pair, t, dbname):
     return dic
 
 
+
 def ternary_parameters_ready(pair, t, dbname):
     """
     Make parameters ready in a dictionary for further selection and calculating
@@ -163,28 +170,31 @@ def chemical_potential_lassin(a1, a2, a3, a4, a5, t):
 
 
 def parameter_cal_lassin(a1, a2, a3, a4, a5, a6, a7, a8, t):
-    p = a1 + a2 * t + a3 * t ** 2 + a4 * t ** 3 + a5 / t + a6 * ln(t) + a7 / (t - 263) + a8 / (680 - t)
+    p = a1 + a2 * t + a3 * t ** 2 + a4 * t ** 3 + a5 / t + a6 * np.log(t) + a7 / (t - 263) + a8 / (680 - t)
     return p
 
 
 def parameter_cal_spencer(a1, a2, a3, a4, a5, a6, t):
-    parameter = a1 + a2 * t + a3 * t ** 2 + a4 * t ** 3 + a5 / t + a6 * ln(t)
+    parameter = a1 + a2 * t + a3 * t ** 2 + a4 * t ** 3 + a5 / t + a6 * np.log(t)
     return parameter
 
+def parameter_fun_spencer(a, T):
+    parameter = a[0] + a[1] * T + a[2] * T ** 2 + a[3] * T ** 3 + a[4] / T + a[5] * np.log(T)
+    return parameter
 
 def parameter_cal_moller(a1, a2, a3, a4, a5, a6, a7, a8, t):
-    p = a1 + a2 * t + a3 / t + a4 * ln(t) + a5 / (t - 263) + a6 * t ** 2 + a7 / (680 - t) + a8 / (t - 227)
+    p = a1 + a2 * t + a3 / t + a4 * np.log(t) + a5 / (t - 263) + a6 * t ** 2 + a7 / (680 - t) + a8 / (t - 227)
     return p
 
 def parameter_cal_holmes(a1, a2, a3, a4, a5, a6, t):
     t_r = 298.15
-    parameter = a1 + a2 * (1 / t - 1 / t_r) + a3 * ln(t / t_r) + a4 * (t - t_r) + a5 * (t ** 2 - t_r ** 2) + a6 * ln(
+    parameter = a1 + a2 * (1 / t - 1 / t_r) + a3 * np.log(t / t_r) + a4 * (t - t_r) + a5 * (t ** 2 - t_r ** 2) + a6 * np.log(
         t - 260)
     return parameter
 
 def parameter_cal_marion(a1, a2, a3, a4, a5, a6, a7, t):
     # reference: [4]
-    parameter = a1 + a2 * t + a3 * t ** 2 + a4 * t ** 3 + a5 / t + a6 * ln(t) + a7 / (t ** 2)
+    parameter = a1 + a2 * t + a3 * t ** 2 + a4 * t ** 3 + a5 / t + a6 * np.log(t) + a7 / (t ** 2)
     return parameter
 
 
@@ -386,8 +396,6 @@ def salt_type(pair):
 """
 the Pitzer parameters
 """
-
-
 def a_phi_moller(t):
     a1 = 3.36901532e-01
     a2 = -6.32100430e-04
@@ -397,15 +405,14 @@ def a_phi_moller(t):
     a6 = 1.92118597e-06
     a7 = 4.52586464e01
     a8 = 0
-    return a1 + a2 * t + a3 / t + a4 * ln(t) + a5 / (t - 263) + a6 * t ** 2 + a7 / (680 - t) + a8 / (t - 227)
+    return a1 + a2 * t + a3 / t + a4 * np.log(t) + a5 / (t - 263) + a6 * t ** 2 + a7 / (680 - t) + a8 / (t - 227)
 
 
-def a_phi_spencer(t):
+def a_phi_spencer(T):
     """
-    Calculate the A_phi (Debye-Hukel constant) according to the temperature
-    :param t: temperature of solution, Calvin(K)
-    :return: value of a_phi
-    :reference:
+    Calculate the A(φ) (Debye-Hukel constant) with temperature-dependent equation.
+    :param T: temperature of solution, [K]
+    :return: A(φ)
     """
     a1 = 8.66836498e1
     a2 = 8.48795942e-2
@@ -413,7 +420,7 @@ def a_phi_spencer(t):
     a4 = 4.88096393e-8
     a5 = -1.32731477e3
     a6 = -1.76460172e1
-    a_phi = parameter_cal_spencer(a1, a2, a3, a4, a5, a6, t)
+    a_phi = parameter_cal_spencer(a1, a2, a3, a4, a5, a6, T)
     return a_phi
 
 
@@ -480,19 +487,17 @@ def get_beta_prime(parameters, pair, i):
 
 
 def get_beta_phi(parameters, pair, i):
-    charge_number1 = get_charge_number(pair[0])
-    charge_number2 = get_charge_number(pair[1])
+    z1 = get_charge_number(pair[0])
+    z2 = get_charge_number(pair[1])
 
     alpha = 2  # kg^(1/2)⋅mol^(-1/2)
     alpha_1 = 1.4  # kg^(1/2)⋅mol^(-1/2)
     alpha_2 = 12  # kg^(1/2)⋅mol^(-1/2)
 
-    b0 = parameters['b0']
-    b1 = parameters['b1']
-    b2 = parameters['b0']
+    b0, b1, b2 = parameters
 
     """for 2-2 type salts"""
-    if abs(charge_number1) == 2 and abs(charge_number2) == 2:
+    if abs(z1) == 2 and abs(z2) == 2:
         beta_phi = b0 + b1 * exp(-alpha_1 * (i ** (1 / 2))) + b2 * exp(-alpha_2 * (i ** (1 / 2)))
     else:
         """for 1-1, 1-2, 2-1, 3-1, 4-1 type salts"""
@@ -529,7 +534,7 @@ def get_f_gamma(a_phi, i):
     """
     b = 1.2
     f_gamma = - a_phi * (
-            i ** (1 / 2) / (1 + b * i ** (1 / 2)) + (2 / b) * ln(
+            i ** (1 / 2) / (1 + b * i ** (1 / 2)) + (2 / b) * np.log(
         1 + b * i ** (1 / 2))
     )
     return f_gamma
@@ -587,8 +592,8 @@ def get_e_theta(z_m, z_n, a_phi, i):
     }
 
 
-@hash_dict
-@lru_cache(maxsize=None)
+# @hash_dict
+# @lru_cache(maxsize=None)
 def calculate_ionic_strength(molalities):
     data = molalities
     ions = data.keys()
@@ -605,15 +610,14 @@ def calculate_molality(x, species):
     x1, x2 = x
     molalities = {}
     for key, value in species.items():
-        molalities[key] = value * x1
-
-    if 'Cl-' not in species.keys():
-        molalities['Cl-'] = x2
+        if key != 'Cl-':
+            molalities[key] = value * x1
+    molalities['Cl-'] = x2
     return molalities
 
 
-@hash_dict
-@lru_cache(maxsize=None)
+# @hash_dict
+# @lru_cache(maxsize=None)
 def calculate_charge_balance(x, molalities):
     balance = 0
     for species in molalities.keys():
@@ -745,20 +749,42 @@ def get_beta_012(rd, t, method):
     }
 
 
-@hash_dict
-@lru_cache(maxsize=None)
-def beta_calculate(ion_pair, ionic_strength, t, database):
-    rd = binary_parameters_ready(ion_pair, t, database)
-    if 'Li+' in ion_pair or 'Cs+' in ion_pair:
-        method = 'holmes'
-    elif 'Fe+2' in ion_pair:
-        method = 'marion'
-    else:
-        method = 'spencer'
-    beta_012 = get_beta_012(rd, t, method=method)
+# @hash_dict
+# @lru_cache(maxsize=None)
+# def beta_calculate(ion_pair, ionic_strength, T, database):
+#     rd = binary_parameters_ready(ion_pair, T, database)
+#     if 'Li+' in ion_pair or 'Cs+' in ion_pair:
+#         method = 'holmes'
+#     elif 'Fe+2' in ion_pair:
+#         method = 'marion'
+#     else:
+#         method = 'spencer'
+#     beta_012 = get_beta_012(rd, T, method=method)
 
-    beta = get_beta(beta_012, ion_pair, ionic_strength)
-    return beta
+#     beta = get_beta(beta_012, ion_pair, ionic_strength)
+#     return beta
+
+def get_parameter_pypitzer(parameters, T, eq_num):
+    if eq_num == 0:
+        return parameter_fun_spencer(parameters, T)
+
+
+def beta_calculate_new(ion_pair, ionic_strength, T, database):
+    binary_pair = ",".join(sorted(list(ion_pair)))
+    parameters = parameter_db['binary'][binary_pair]
+
+    para_b0 = list(parameters['b0'].values())
+    para_b1 = list(parameters['b1'].values())
+    para_b2 = list(parameters['b2'].values())
+    eq_num = parameters['eq_num']
+    b0 =get_parameter_pypitzer(para_b0, T, eq_num) 
+    b1 =get_parameter_pypitzer(para_b1, T, eq_num)
+    b2 =get_parameter_pypitzer(para_b2, T, eq_num) 
+    
+    b_phi = get_beta_phi((b0, b1, b2), ion_pair, ionic_strength)
+
+    return b_phi
+
 
 
 @hash_dict

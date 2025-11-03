@@ -350,3 +350,38 @@ solids = {
         },
     },
 }
+
+
+import json
+from pathlib import Path
+current_dir = Path(__file__).parent
+# Define output JSON file path
+output_file = current_dir/ "pypitzer_solids.json"
+
+def dict_to_reactions(solids_dict):
+    reactions = {}
+    for solid, species_dict in solids_dict.items():
+        lhs = solid  # solid on the left-hand side
+        rhs_terms = []
+        for species, info in species_dict.items():
+            n = info['value']
+            if n > 0:
+                # Add stoichiometric prefix if >1
+                term = f"{n}{species}" if n != 1 else species
+                rhs_terms.append(term)
+        reaction_str = f"{lhs} = {' + '.join(rhs_terms)}"
+        reactions[solid] = reaction_str
+    return reactions
+
+# Convert
+reaction_dict = dict_to_reactions(solids)
+
+# Print results
+# for solid, reaction in reaction_dict.items():
+#     print(reaction)
+
+# Convert to JSON and save
+with open(output_file, 'w', encoding='utf-8') as f:
+    json.dump(reaction_dict, f, indent=2, ensure_ascii=False)
+
+print(f"Solids dictionary saved as {output_file}")

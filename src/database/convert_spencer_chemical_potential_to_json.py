@@ -38,7 +38,7 @@ def convert_chemical_potential_to_json_format(chemical_potential_data):
         if '(' in species_name and ')' in species_name:
             # Extract the state from parentheses
             state_part = species_name[species_name.find('(')+1:species_name.find(')')]
-            clean_name = species_name[:species_name.find('(')].strip()
+            # clean_name = species_name[:species_name.find('(')].strip()
             
             # Map state abbreviations to full names
             state_mapping = {
@@ -54,7 +54,7 @@ def convert_chemical_potential_to_json_format(chemical_potential_data):
             state = 's'
         
         # Create the species entry with flattened coefficients
-        json_data[clean_name] = {
+        json_data[species_name] = {
             'state': state,
             'ref': 'Liu et al., 2024',
             'T_range': [-90, 25],  # ℃
@@ -92,7 +92,7 @@ def main():
     output_dir = current_dir 
 
     # Save chemical potential data to JSON file
-    chemical_potential_output_file = output_dir / "spencer_revised_chemical_potential.json"
+    chemical_potential_output_file = output_dir / "pypitzer_potential.json"
     save_to_json(chemical_potential_json, chemical_potential_output_file)
     
     print(f"Successfully converted chemical potential data to {chemical_potential_output_file}")
