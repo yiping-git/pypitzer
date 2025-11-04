@@ -265,7 +265,14 @@ solids = {
         'a6': -37.39279,
     }
 }
+# Create a new dict with renumbered coefficient keys
+renumbered_species = {}
+for key, coeffs in solids.items():
+    # enumerate ensures ordered renaming a0, a1, a2, ...
+    new_coeffs = {f"a{i}": v for i, v in enumerate(coeffs.values())}
+    renumbered_species[key] = new_coeffs
 
+solids = renumbered_species
 # create database
 df = pd.DataFrame(columns=['a1', 'a2', 'a3', 'a4', 'a5', 'a6'])
 

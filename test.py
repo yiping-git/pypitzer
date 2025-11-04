@@ -4,19 +4,19 @@ import pprint
 
 species = {
     'Na+': 1, # always be 1 if Na is the internal standard
-    'K+': 2,  # K/Na = 2
+    'K+': 2 ,  # K/Na = 2
 }
 
 # create a fluid object with information from microthemometric and LA-ICP-MS data
 fluid = FluidPitzer(
     # the initial guess
-    x0=(3,3),
+    x0=(1,1),
   
     # species defined before
     species=species,
   
     # the last melting solid phase
-    solids=['KCl'],
+    solids=['KCl(s)'],
   
     # melting temperature of the last solid, °C
     t = 25,

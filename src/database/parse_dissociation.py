@@ -3,10 +3,10 @@ import re
 from pathlib import Path
 
 current_dir = Path(__file__).parent
-json_file = current_dir / "pypitzer_solids.json"
+json_file = current_dir / "pypitzer_reaction.json"
 
 with open(json_file, "r", encoding="utf-8") as f:
-    reactions_data = json.load(f)
+    reaction_database = json.load(f)
 
 
 def clean_state_marks(text: str) -> str:
@@ -48,29 +48,51 @@ def parse_species(species_str: str):
     return name, {'value': coef, 'type': type_}
 
 
-def get_solid_stoichiometry(solid_name: str, reactions_dict: dict):
+def get_solid_stoichiometry(reaction_data):
     """
     Return only the RHS species dictionary (no outer solid key).
     """
-    if solid_name not in reactions_dict:
-        raise ValueError(f"{solid_name} not found in reactions dictionary")
+    reaction_str = reaction_data['reaction']
+    if reaction_str:
+        lhs, rhs = reaction_str.split('=', 1)
 
-    reaction_str = reactions_dict[solid_name]
-    lhs, rhs = reaction_str.split('=', 1)
+        rhs_no_states = clean_state_marks(rhs)
+        species_tokens = [tok.strip() for tok in re.split(r'\s+\+\s+', rhs_no_states.strip()) if tok.strip()]
 
-    rhs_no_states = clean_state_marks(rhs)
-    species_tokens = [tok.strip() for tok in re.split(r'\s+\+\s+', rhs_no_states.strip()) if tok.strip()]
+        stoich = {}
+        for tok in species_tokens:
+            name, info = parse_species(tok)
+            stoich[name] = info
+        return stoich
+    return None
 
-    stoich = {}
-    for tok in species_tokens:
-        name, info = parse_species(tok)
-        stoich[name] = info
+class Reaction:
+    def __init__(self, reaction_key):
+        self.reaction_key = reaction_key
 
-    return stoich
+    def reaction_data(self):
+        if self.reaction_key not in reaction_database:
+            raise ValueError(f"{self.reaction_key} not found in reactions dictionary")
+        return reaction_database[self.reaction_key]
+
+    @property
+    def stoich(self):
+        return get_solid_stoichiometry(self.reaction_data())
+    
+    @property
+    def analytic(self):
+        return self.reaction_data()['analytic']
+    
+    @property
+    def eq_num(self):
+        return self.reaction_data()['eq_num']
+
+    
 
 
 # Example usage
 if __name__ == '__main__':
-    solid_input = "2KCl·FeCl2·2H2O(s)"
-    stoich_data = get_solid_stoichiometry(solid_input, reactions_data)
-    print(json.dumps(stoich_data, indent=2))
+    reaction = Reaction("CaCl2·6H2O(s)")
+
+    print(type(reaction.stoich))
+    print(reaction.analytic)

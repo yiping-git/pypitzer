@@ -4,8 +4,6 @@
 # Version: 1.0
 # Last Modified: May 7, 2023
 
-from sympy import *
-
 
 def find_pair(x, pairs):
     """
@@ -27,25 +25,6 @@ def find_pair(x, pairs):
         "has": has,
         "target": target
     }
-
-
-x = symbols('x')
-
-
-def newton_raphson(x_n, eq, eq_prime, max_iterators):
-    tolerance = 10 ** (-6)
-    iterate_number = 0
-
-    while iterate_number < max_iterators:
-        print("x_{n}: {x_n}".format(n=iterate_number, x_n=float(x_n)))
-        iterate_number += 1
-        f = eq.subs({x: x_n}).evalf()
-        f_prime = eq_prime.subs({x: x_n}).evalf()
-        x_n_plus = x_n - f / f_prime
-
-        if abs((x_n_plus - x_n) / x_n) < tolerance:
-            return x_n
-        x_n = x_n_plus
 
 
 def get_charge_number(ion):

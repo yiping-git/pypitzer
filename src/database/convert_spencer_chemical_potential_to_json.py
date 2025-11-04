@@ -55,10 +55,11 @@ def convert_chemical_potential_to_json_format(chemical_potential_data):
         
         # Create the species entry with flattened coefficients
         json_data[species_name] = {
-            'state': state,
+            'analytic': coefficients,
+            # 'state': state,
             'ref': 'Liu et al., 2024',
-            'T_range': [-90, 25],  # ℃
-            **coefficients  # Flatten the coefficients directly into the object
+            'T_range': [-90, 25]  # ℃
+              # Flatten the coefficients directly into the object
         }
     
     return json_data
@@ -66,7 +67,7 @@ def convert_chemical_potential_to_json_format(chemical_potential_data):
 def save_to_json(data, output_file):
     """Save the data to a JSON file with proper formatting."""
     with open(output_file, 'w', encoding='utf-8') as f:
-        json.dump(data, f, indent=2, ensure_ascii=False, sort_keys=True)
+        json.dump(data, f, indent=2, ensure_ascii=False, sort_keys=False)
 
 def main():
     """Main function to convert Spencer chemical potential data to JSON."""

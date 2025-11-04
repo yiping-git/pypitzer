@@ -15,17 +15,16 @@ import numpy as np
 from scipy.optimize import minimize
 from database.solid_data import solids
 
-import public.low_level as ll
+from public.low_level import type_of_species, get_charge_number
 from public.icemelting import (clegg_and_brimblecombe, spencer, monnin)
 
 import Pitzer.methods as pm
-from Pitzer.methods import get_charge_number
 
 from functools import lru_cache, wraps
 
 
 class FluidPitzer:
-    def __init__(self, x0, species, t=25, database='spencer', neutral=False, solids=None):
+    def __init__(self, x0, species,  solids, t=25, neutral=False, ):
         """
         Initiate the solution.
         :param x0: initiate values of x(x1, x2), namely value of mNa and mCl.
@@ -37,7 +36,6 @@ class FluidPitzer:
         self.x0 = x0
         self.t = t + 273.16
         self.species = species
-        self.database = database
         self.solids = solids
         self.neutral = neutral  # to determine if a neutral species is considered in this fluid.
 
@@ -85,7 +83,7 @@ class FluidPitzer:
         ions = molalities.keys()
         z_value = 0
         for ion in ions:
-            charge_number = pm.get_charge_number(ion)
+            charge_number = get_charge_number(ion)
             z_value += molalities[ion] * abs(charge_number)
         return z_value
 
@@ -231,9 +229,9 @@ class FluidPitzer:
         neutral_ion_pairs = self.get_component_groups()['neutral_ion_pairs']
         lambdas = {}
         for pair in neutral_ion_pairs:
-            rd = pm.binary_parameters_ready(pair=pair, t=self.t,  dbname = self.database)
-            lambda_value = pm.get_parameter(pair=pair, name='lambda', data=rd, t=self.t)
-            lambdas[pair] = lambda_value
+            # rd = pm.binary_parameters_ready(pair=pair, t=self.t)
+            # lambda_value = pm.get_parameter(pair=pair, name='lambda', data=rd, t=self.t)
+            lambdas[pair] = pm.lambda_cal(pair, self.t)
         return lambdas
 
     def get_zetas(self, x):
@@ -713,7 +711,7 @@ class FluidPitzer:
         molalities = self.get_molalities(x)
         total_g = 0
         for species in molalities.keys():
-            species_type = ll.type_of_species(species)
+            species_type = type_of_species(species)
             m_i = molalities[species]
             ln_gamma = 0
             if species_type == 0:
@@ -726,7 +724,11 @@ class FluidPitzer:
 
         # gibbs energy of water
         ln_a_w = self.get_water_activity(x)
-        std_cp_water = pm.get_chemical_potential(species='H2O(l)', t=self.t)
+
+        water_data = pm.Reaction('H2O(l)')
+        water_parameters = list(water_data.analytic.values())
+
+        std_cp_water = pm.get_chemical_potential(water_parameters, self.t, water_data.eq_num)
 
         cp_water = (1000 / 18.015) * (std_cp_water + r * self.t * ln_a_w)
 
@@ -737,17 +739,19 @@ class FluidPitzer:
         print(x)
         target_species = self.solids[0]
         lna_pitzer = self.get_water_activity(x)
-        if target_species == 'H2O(S)':
-            # lnk_ice = clegg_and_brimblecombe(self.t)
+        if target_species == 'H2O(s)':
+            lnk_ice = clegg_and_brimblecombe(self.t)
             # lnk_ice = monnin(self.t)
-            lnk_ice = spencer(self.t)
+            # lnk_ice = spencer(self.t)
             f = lnk_ice - lna_pitzer
         else:
+            solid_disso = pm.Reaction(target_species)
+            solid_data = solid_disso.stoich
+            parameters = list(solid_disso.analytic.values())
+
             molalities = self.get_molalities(x)
+            lnk_potential = pm.get_chemical_potential(parameters, self.t, solid_disso.eq_num)
 
-            lnk_potential = pm.get_chemical_potential(species=target_species, t=self.t)
-
-            solid_data = solids[target_species]
             lnk_activity = 0
             for species in solid_data.keys():
                 # get the stochiometric number of this species first

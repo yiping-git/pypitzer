@@ -2,26 +2,21 @@
 # Author: Yiping Liu
 # Description: This script calculates the average of a list of numbers.
 # Version: 1.0
-# Last Modified: May 7, 2023
+# Last Modified: Nov 11, 2025
 import json
+import re
 import numpy as np
 import pandas as pd
 import itertools
 
-from functools import lru_cache
+# from src.database.spencer_revised_chemical_potential import spencer_chemical_potential_db
+# from src.database.marion_chemical_potential import marion_chemical_potential_db
+# from src.database.lassin_chemical_potential import lassin_chemical_potential_db
+# from src.database.solid_data import solids
 
-from src.database.spencer_revised_chemical_potential import spencer_chemical_potential_db
-from src.database.marion_chemical_potential import marion_chemical_potential_db
-from src.database.lassin_chemical_potential import lassin_chemical_potential_db
-from src.database.solid_data import solids
-
-from src.public.low_level import find_pair
 from src.public.j_x import compute_j_jp
-from src.public.low_level import find_pair
-
-import functools
+from src.public.low_level import get_charge_number
 from pathlib import Path
-
 
 here = Path(__file__).resolve().parent.parent
 
@@ -39,19 +34,6 @@ def ternary_query(ion_pair):
     ternary_pair = ",".join(sorted(list(ion_pair)))
     parameters = parameter_db['ternary'][ternary_pair]
     return parameters
-
-
-
-def ternary_parameter_cal(pair, T):
-    parameters = ternary_query(pair)
-
-    para_psi  = list(parameters['psi'].values())
-    para_zeta = list(parameters['zeta'].values()) if 'zeta' in parameters else None
-    eq_num = parameters['eq_num']
-
-    psi = get_parameter_pypitzer(para_psi, T, eq_num)
-    zeta = get_parameter_pypitzer(para_zeta, T, eq_num) if para_zeta else 0
-    return (psi, zeta)
 
 
 def chemical_potential_lassin(a1, a2, a3, a4, a5, t):
@@ -87,204 +69,7 @@ def parameter_cal_marion(a1, a2, a3, a4, a5, a6, a7, t):
     return parameter
 
 
-def get_parameter_lassin(name, data, t):
-    """
-    Choose equation and calculate parameters conveniently.
-    :param name: parameter name, can be 'b0', 'b1', 'c', 'theta', 'psi'.
-    :param data: a dict contains all the interaction data an ion-pair.
-    :param t: temperature of the solution.
-    :param method: method used to calculate parameter, default is 'spencer'.
-    :return: value of the parameter.
-    """
 
-    a1 = data['{}_a1'.format(name)]
-    a2 = data['{}_a2'.format(name)]
-    a3 = data['{}_a3'.format(name)]
-    a4 = data['{}_a4'.format(name)]
-    a5 = data['{}_a5'.format(name)]
-    a6 = data['{}_a6'.format(name)]
-    a7 = data['{}_a7'.format(name)]
-    a8 = data['{}_a8'.format(name)]
-
-    parameter = parameter_cal_lassin(a1, a2, a3, a4, a5, a6, a7, a8, t)
-
-    return parameter
-
-
-def get_parameter_spencer(name, data, t):
-    """
-    Choose equation and calculate parameters conveniently.
-    :param name: parameter name, can be 'b0', 'b1', 'c', 'theta', 'psi'.
-    :param data: a dict contains all the interaction data an ion-pair.
-    :param t: temperature of the solution.
-    :param method: method used to calculate parameter, default is 'spencer'.
-    :return: value of the parameter.
-    """
-
-    a1 = data['{}_a1'.format(name)]
-    a2 = data['{}_a2'.format(name)]
-    a3 = data['{}_a3'.format(name)]
-    a4 = data['{}_a4'.format(name)]
-    a5 = data['{}_a5'.format(name)]
-    a6 = data['{}_a6'.format(name)]
-
-    parameter = parameter_cal_spencer(a1, a2, a3, a4, a5, a6, t)
-
-    return parameter
-
-def get_parameter_marion(name, data, t):
-    a1 = data['{}_a1'.format(name)]
-    a2 = data['{}_a2'.format(name)]
-    a3 = data['{}_a3'.format(name)]
-    a4 = data['{}_a4'.format(name)]
-    a5 = data['{}_a5'.format(name)]
-    a6 = data['{}_a6'.format(name)]
-    a7 = data['{}_a7'.format(name)]
-
-    parameter = parameter_cal_marion(a1, a2, a3, a4, a5, a6, a7, t)
-    return parameter
-
-def get_parameter_holmes(name, data, t):
-    """
-    Choose equation and calculate parameters conveniently.
-    :param name: parameter name, can be 'b0', 'b1', 'c', 'theta', 'psi'.
-    :param data: a dict contains all the interaction data an ion-pair.
-    :param t: temperature of the solution.
-    :param method: method used to calculate parameter, default is 'spencer'.
-    :return: value of the parameter.
-    """
-
-    a1 = data['{}_a1'.format(name)]
-    a2 = data['{}_a2'.format(name)]
-    a3 = data['{}_a3'.format(name)]
-    a4 = data['{}_a4'.format(name)]
-    a5 = data['{}_a5'.format(name)]
-    a6 = data['{}_a6'.format(name)]
-
-
-    parameter = parameter_cal_holmes(a1, a2, a3, a4, a5, a6, t)
-
-    return parameter
-
-
-def get_parameter_moller(name, data, t):
-    """
-    Choose equation and calculate parameters conveniently.
-    :param name: parameter name, can be 'b0', 'b1', 'c', 'theta', 'psi'.
-    :param data: a dict contains all the interaction data an ion-pair.
-    :param t: temperature of the solution.
-    :param method: method used to calculate parameter, default is 'spencer'.
-    :return: value of the parameter.
-    """
-
-    a1 = data['{}_a1'.format(name)]
-    a2 = data['{}_a2'.format(name)]
-    a3 = data['{}_a3'.format(name)]
-    a4 = data['{}_a4'.format(name)]
-    a5 = data['{}_a5'.format(name)]
-    a6 = data['{}_a6'.format(name)]
-    a7 = data['{}_a7'.format(name)]
-    a8 = data['{}_a8'.format(name)]
-
-    parameter = parameter_cal_moller(a1, a2, a3, a4, a5, a6, a7, a8, t)
-    return parameter
-
-
-def get_parameter(pair, name, data, t):
-    if 'Li+' in pair or 'Cs+' in pair:
-        return get_parameter_holmes(name, data, t)
-    elif 'Fe+2' in pair:
-        return get_parameter_marion(name,data,t)
-    else:
-        return get_parameter_spencer(name, data, t)
-
-
-def get_charge_number(ion):
-    """
-    get the charge number of an ion (str)
-    :param ion: ion name, a string with "+" or "-" sign followed by number of charge
-    :return: charge number
-    """
-    if "+" in ion:
-        lis = ion.split("+")
-        if lis[1]:
-            result = lis[1]
-        else:
-            result = 1
-    elif "-" in ion:
-        lis = ion.split("-")
-        if lis[1]:
-            lis[1] = '-' + lis[1]
-            result = lis[1]
-        else:
-            result = -1
-    else:
-        result = 0
-    return int(result)
-
-
-def is_neutral(ion):
-    charge = get_charge_number(ion)
-    if charge == 0:
-        return True
-    return False
-
-
-def is_cation(ion):
-    charge = get_charge_number(ion)
-    if charge > 0:
-        return True
-    return False
-
-
-def is_anion(ion):
-    charge = get_charge_number(ion)
-    if charge < 0:
-        return True
-    return False
-
-
-def species_type(species):
-    """
-    Determine whether a species is a cation, anion or neutral species.
-    :param species: [string], e.g. "Na+", "Cl-", "H2O".
-    :return: type name
-    """
-    if species.find("+") != -1:
-        s_type = 'cation'
-    elif species.find("-") != -1:
-        s_type = 'anion'
-    else:
-        s_type = 'neutral'
-    return s_type
-
-
-def salt_type(pair):
-    """
-    Determine whether a salt is a 2-2 type or not.
-    :param ion1: ion1
-    :param ion2: ion2
-    :return: return True if it is a 2-2 type of salt
-    """
-    ion1 = pair[0]
-    ion2 = pair[1]
-    if ion1.find("+") != -1:
-        result1 = ion1.split("+")
-    else:
-        result1 = ion1.split("-")
-    if ion2.find("+") != -1:
-        result2 = ion2.split("+")
-    else:
-        result2 = ion2.split("-")
-    if result1[1] == '2' and result2[1] == '2':
-        return True
-    else:
-        return False
-
-
-"""
-the Pitzer parameters
-"""
 def a_phi_moller(t):
     a1 = 3.36901532e-01
     a2 = -6.32100430e-04
@@ -484,7 +269,6 @@ def calculate_ionic_strength(molalities):
     return sum_value / 2
 
 
-
 def calculate_molality(x, species):
     x1, x2 = x
     molalities = {}
@@ -503,55 +287,11 @@ def calculate_charge_balance(x, molalities):
     return balance
 
 
-def get_chemical_potential(species, t):
-    """
-    Calculate the standard chemical potential of solids melting reaction.
-    the "chemical potential" here actually means "μ/RT".
-    :param solid: [string], solid species, e.g. "NaCl"
-    :param t: [number], melting temperature of the solid, in Kelvin.
-    :return: [number], standard chemical potential of the melting reaction.
-    """
-    if 'Fe+2' in species:
-        data = marion_chemical_potential_db.loc[species]
-        std_chemical_potential = parameter_cal_marion(
-            data['a1'],
-            data['a2'],
-            data['a3'],
-            data['a4'],
-            data['a5'],
-            data['a6'],
-            data['a7'],
-            t
-        )
-    elif species == 'LiCl0':
-        data = lassin_chemical_potential_db.loc[species]
-        std_chemical_potential = chemical_potential_lassin(
-            data['a1'],
-            data['a2'],
-            data['a3'],
-            data['a4'],
-            data['a5'],
-            t
-        )
+def get_chemical_potential(parameters, T, eq_num):
+    if eq_num == 0:
+        return parameter_fun_spencer(parameters, T)
     else:
-        data = spencer_chemical_potential_db.loc[species]
-        std_chemical_potential = parameter_cal_spencer(
-            a1=data['a1'],
-            a2=data['a2'],
-            a3=data['a3'],
-            a4=data['a4'],
-            a5=data['a5'],
-            a6=data['a6'],
-            t=t
-        )
-    return std_chemical_potential
-
-
-def get_hydrate_data(solid):
-    data = {}
-    if solid in solids.keys():
-        data = solids[solid]
-    return data
+        return 0
 
 
 def group_components(components):
@@ -593,6 +333,18 @@ def get_parameter_pypitzer(parameters, T, eq_num):
     return parameter_fun_spencer(parameters, T)
 
 
+def ternary_parameter_cal(pair, T):
+    parameters = ternary_query(pair)
+
+    para_psi  = list(parameters['psi'].values())
+    para_zeta = list(parameters['zeta'].values()) if 'zeta' in parameters else None
+    eq_num = parameters['eq_num']
+
+    psi = get_parameter_pypitzer(para_psi, T, eq_num)
+    zeta = get_parameter_pypitzer(para_zeta, T, eq_num) if para_zeta else 0
+    return (psi, zeta)
+
+
 def get_beta_012(ion_pair, T):
     parameters = binary_query(ion_pair)
 
@@ -618,13 +370,10 @@ def beta_phi_calculate(ion_pair, ionic_strength, T):
     b_phi = get_beta_phi(beta_012, ion_pair, ionic_strength)
     return b_phi
 
-
-
 def beta_prime_calculate(ion_pair, ionic_strength, T):
     beta_012 = get_beta_012(ion_pair, T)
     b_prime = get_beta_prime(beta_012, ion_pair, ionic_strength)
     return b_prime
-
 
 def c_calculate(ion_pair, T):
     parameters = binary_query(ion_pair)
@@ -639,7 +388,12 @@ def c_calculate(ion_pair, T):
     c = get_c(c0, z1, z2)
     return c
 
+def lambda_cal(pair,T):
+    parameters = binary_query(pair)
 
+    para_lambda = list(parameters['lambda'].values())
+    eq_num = parameters['eq_num']
+    return get_parameter_pypitzer(para_lambda, T, eq_num)
 
 
 def cc_phi_calculate(ion_pair, a_phi, ionic_strength, T):
@@ -694,6 +448,100 @@ def aa_phi_calculate(ion_pair, a_phi, ionic_strength, T):
         "phi": phi,
         "phi_prime": phi_prime
     }
+
+
+"""
+***************************
+ DATA OF SOLID PHASE
+***************************
+"""
+current_dir = Path(__file__).parent
+json_file = here / "database/pypitzer_reaction.json"
+
+with open(json_file, "r", encoding="utf-8") as f:
+    reaction_database = json.load(f)
+
+
+def clean_state_marks(text: str) -> str:
+    """Remove state marks like (aq), (s), (l), (g)."""
+    return re.sub(r'\([a-zA-Z]+\)', '', text)
+
+
+def parse_species(species_str: str):
+    """
+    Parse species like '2K+' or 'Fe+2' or 'H2O' to get value and type.
+    Removes state marks beforehand.
+    """
+    s = species_str.strip()
+    if not s:
+        raise ValueError("Empty species string")
+
+    m = re.match(r'^(\d+)\s*(.+)$', s)
+    if m:
+        coef = int(m.group(1))
+        name = m.group(2).strip()
+    else:
+        coef = 1
+        name = s
+
+    if '+' in name and '-' not in name:
+        type_ = 'cation'
+    elif '-' in name and '+' not in name:
+        type_ = 'anion'
+    elif '+' in name and '-' in name:
+        if name.endswith('+'):
+            type_ = 'cation'
+        elif name.endswith('-'):
+            type_ = 'anion'
+        else:
+            type_ = 'neutral'
+    else:
+        type_ = 'neutral'
+
+    return name, {'value': coef, 'type': type_}
+
+
+def get_solid_stoichiometry(reaction_data):
+    """
+    Return only the RHS species dictionary (no outer solid key).
+    """
+    reaction_str = reaction_data['reaction']
+    stoich = {}
+    if reaction_str:
+        lhs, rhs = reaction_str.split('=', 1)
+
+        rhs_no_states = clean_state_marks(rhs)
+        species_tokens = [tok.strip() for tok in re.split(r'\s+\+\s+', rhs_no_states.strip()) if tok.strip()]
+
+        
+        for tok in species_tokens:
+            name, info = parse_species(tok)
+            stoich[name] = info
+    return stoich
+
+
+class Reaction:
+    def __init__(self, reaction_key):
+        self.reaction_key = reaction_key
+
+    def reaction_data(self):
+        if self.reaction_key not in reaction_database:
+            raise ValueError(f"{self.reaction_key} not found in reactions dictionary")
+        return reaction_database[self.reaction_key]
+
+    @property
+    def stoich(self):
+        return get_solid_stoichiometry(self.reaction_data())
+    
+    @property
+    def analytic(self):
+        return self.reaction_data()['analytic']
+    
+    @property
+    def eq_num(self):
+        return self.reaction_data()['eq_num']
+
+
 
 """
 Reference

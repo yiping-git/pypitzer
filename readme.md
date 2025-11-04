@@ -5,8 +5,7 @@
 
 [![DOI](https://zenodo.org/badge/636408216.svg)](https://zenodo.org/badge/latestdoi/636408216)
 
-
-authors: Yiping Liu, Thomas Wagner, Tobias Fußwinkel
+![Python Version](https://img.shields.io/badge/Python-3.12-blue.svg)
 
 ## Introduction
 
