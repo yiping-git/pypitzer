@@ -164,6 +164,16 @@ species = {
 
 }
 
+# Create a new dict with renumbered coefficient keys
+renumbered_species = {}
+for key, coeffs in species.items():
+    # enumerate ensures ordered renaming a0, a1, a2, ...
+    new_coeffs = {f"a{i}": v for i, v in enumerate(coeffs.values())}
+    renumbered_species[key] = new_coeffs
+
+species = renumbered_species
+
+
 index = pd.MultiIndex.from_tuples([('pr1', 'pr2', 'pr3', 'pr4')],
                                   names=["parameter", "species1", "species2", "species3"])
 df = pd.DataFrame(columns=['a1', 'a2', 'a3', 'a4', 'a5', 'a6'], index=index)

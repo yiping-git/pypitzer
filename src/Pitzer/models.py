@@ -104,8 +104,7 @@ class FluidPitzer:
             pair_parameters[cap] = pm.beta_calculate(
                 ion_pair=cap,
                 ionic_strength=self.get_ionic_strength(x),
-                T=self.t,
-                database=self.database
+                T=self.t
             )
         return pair_parameters
 
@@ -116,8 +115,7 @@ class FluidPitzer:
             pair_parameters[cap] = pm.beta_phi_calculate(
                 ion_pair=cap,
                 ionic_strength=self.get_ionic_strength(x),
-                t=self.t,
-                database=self.database
+                T=self.t
             )
 
         return pair_parameters
@@ -136,8 +134,7 @@ class FluidPitzer:
             pair_parameters[cap] = pm.beta_prime_calculate(
                 ion_pair=cap,
                 ionic_strength=self.get_ionic_strength(x),
-                t=self.t,
-                database=self.database
+                T=self.t,
             )
         return pair_parameters
 
@@ -147,8 +144,7 @@ class FluidPitzer:
         for cap in cation_anion_pairs:
             pair_parameters[cap] = pm.c_calculate(
                 ion_pair=cap,
-                t=self.t,
-                database=self.database
+                T=self.t,
             )
         return pair_parameters
 
@@ -160,8 +156,7 @@ class FluidPitzer:
                 ion_pair=cation_pair,
                 ionic_strength=self.get_ionic_strength(x),
                 a_phi=self.get_a_phi(),
-                t=self.t,
-                database=self.database
+                T=self.t,
             )
         return phi_dict
 
@@ -169,7 +164,6 @@ class FluidPitzer:
         i = self.get_ionic_strength(x)
         dict = {}
         phis = self.get_cc_phi(x)
-
         for pair in phis.keys():
             dict[pair] = phis[pair]["phi"] + i * phis[pair]["phi_prime"]
         return dict
@@ -183,48 +177,55 @@ class FluidPitzer:
                     ion_pair=anion_pair,
                     ionic_strength=self.get_ionic_strength(x),
                     a_phi=self.get_a_phi(),
-                    t=self.t,
-                    database=self.database
+                    T=self.t,
                 )
             return phi_dict
-        return 'Anions less than 1'
+        return {}
 
     def get_aa_phi_prime_phi(self, x):
         if self.get_component_groups()['anion_pairs']:
             i = self.get_ionic_strength(x)
-            phi_prime_phi_dict = {}
+            dict = {}
             phis = self.get_aa_phi(x)
             for pair in phis.keys():
-                phi_prime_phi_dict[pair] = phis[pair]["phi"] + i * phis[pair]["phi_prime"]
-            return phi_prime_phi_dict
+                dict[pair] = phis[pair]["phi"] + i * phis[pair]["phi_prime"]
+            return dict
+        else: 
+            return {}
 
     def get_cca_psi(self, x):
-        cation_pairs = self.get_component_groups()['cation_pairs']
-        anions = self.get_component_groups()['anions']
+        component_groups = self.get_component_groups()
+        cation_pairs = component_groups['cation_pairs']
+        anions = component_groups['anions']
         cca_pairs = {}
         for cation_pair in cation_pairs:
             cation1 = cation_pair[0]
             cation2 = cation_pair[1]
             for anion in anions:
-                rd = pm.ternary_parameters_ready((cation1, cation2, anion), self.t, dbname=self.database)
-                cca_pairs[cation1, cation2, anion] = pm.get_parameter(pair=(cation1, cation2, anion), name='psi',
-                                                                      data=rd, t=self.t)
+                # rd = pm.ternary_parameters_ready((cation1, cation2, anion), self.t, dbname=self.database)
+                ternary_parameters = pm.ternary_parameter_cal(pair=(cation1, cation2, anion), T= self.t)
+                cca_pairs[cation1, cation2, anion] = ternary_parameters[0]
         return cca_pairs
 
     def get_aac_psi(self, x):
-        if self.get_component_groups()['anion_pairs']:
-            anion_pairs = self.get_component_groups()['anion_pairs']
-            cations = self.get_component_groups()['cations']
+        component_groups = self.get_component_groups()
+        anion_pairs = component_groups['anion_pairs']
+        if anion_pairs:
+            cations = component_groups['cations']
             aac_pairs = {}
             for anion_pair in anion_pairs:
                 anion_list = list(anion_pair)
                 anion1 = anion_list[0]
                 anion2 = anion_list[1]
                 for cation in cations:
-                    rd = pm.ternary_parameters_ready((anion1, anion2, cation), self.t, dbname=self.database)
-                    aac_pairs[anion1, anion2, cation] = pm.get_parameter(pair=(anion1, anion2, cation), name='psi',
-                                                                         data=rd, t=self.t)
+                    # rd = pm.ternary_parameters_ready((anion1, anion2, cation), self.t, dbname=self.database)
+                    ternary_parameters = pm.ternary_parameter_cal(pair=(anion1, anion2, cation), T= self.t)
+                    # aac_pairs[anion1, anion2, cation] = pm.get_parameter(pair=(anion1, anion2, cation), name='psi',
+                    #                                                      data=rd, t=self.t)
+                    aac_pairs[anion1, anion2, cation] =ternary_parameters[0]
             return aac_pairs
+        else:
+            return {}
 
     def get_lambdas(self, x):
         neutral_ion_pairs = self.get_component_groups()['neutral_ion_pairs']
@@ -239,9 +240,10 @@ class FluidPitzer:
         nca_pairs = self.get_component_groups()['neutral_cation_anion_pairs']
         zetas = {}
         for pair in nca_pairs:
-            rd = pm.ternary_parameters_ready(pair=pair, t=self.t, dbname=self.database)
-            zeta_value = pm.get_parameter(pair=pair, name='zeta', data=rd, t=self.t)
-            zetas[pair] = zeta_value
+            # rd = pm.ternary_parameters_ready(pair=pair, t=self.t, dbname=self.database)
+            ternary_parameters = pm.ternary_parameter_cal(pair=pair, T= self.t)
+            # zeta_value = pm.get_parameter(pair=pair, name='zeta', data=rd, t=self.t)
+            zetas[pair] = ternary_parameters[1]
         return zetas
 
     def get_osmotic_coefficient(self, x):

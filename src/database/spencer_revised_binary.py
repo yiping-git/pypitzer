@@ -174,6 +174,7 @@ species = {
         'a5': -0.15228e3,
         'a6': -0.6885e-2,
     },
+    # here
     ('b1', 'Ca+2', 'SO4-2'): {
         'a1': 0.28945e1,
         'a2': 0.7434e-2,
@@ -555,3 +556,5 @@ for key, value in species.items():
 df.sort_index()
 
 spencer_binary = df
+
+print(df.head())

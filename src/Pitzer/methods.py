@@ -7,22 +7,12 @@ import json
 import numpy as np
 import pandas as pd
 import itertools
-from sympy import *
 
 from functools import lru_cache
 
-
-from src.database.marion_binary import marion_binary
-from src.database.marion_ternary import marion_ternary
-from src.database.spencer_revised_binary import spencer_binary
-from src.database.spencer_revised_ternary import spencer_ternary
 from src.database.spencer_revised_chemical_potential import spencer_chemical_potential_db
 from src.database.marion_chemical_potential import marion_chemical_potential_db
 from src.database.lassin_chemical_potential import lassin_chemical_potential_db
-from src.database.solid_data import solids
-from src.database.lassin_binary import lassin_binary
-from src.database.lassin_ternary import lassin_ternary
-from src.database.lassin_chemical_potentials import lassin_chemical_potential_db
 from src.database.solid_data import solids
 
 from src.public.low_level import find_pair
@@ -32,136 +22,36 @@ from src.public.low_level import find_pair
 import functools
 from pathlib import Path
 
+
 here = Path(__file__).resolve().parent.parent
 
 db_json_path = here / "database/pypitzer_parameter.json"
 with open(db_json_path,"r",encoding="utf-8") as f:
     parameter_db = json.load(f)
 
-
-# to make dictionary harshable
-def hash_dict(func):
-    """Transform mutable dictionnary
-    Into immutable
-    Useful to be compatible with cache
-    """
-
-    class HDict(dict):
-        def __hash__(self):
-            return hash(frozenset(self.items()))
-
-    @functools.wraps(func)
-    def wrapped(*args, **kwargs):
-        args = tuple([HDict(arg) if isinstance(arg, dict) else arg for arg in args])
-        kwargs = {k: HDict(v) if isinstance(v, dict) else v for k, v in kwargs.items()}
-        return func(*args, **kwargs)
-
-    return wrapped
-
-
-def get_two_ion_db(name):
-    name = name.lower()
-    database = None
-    if name == 'spencer':
-        database = spencer_binary
-    elif name == 'marion':
-        database = marion_binary
-    elif name == 'lassin':
-        database = lassin_binary
-    return database
-
-
-def get_three_ion_db(name):
-    name = name.lower()
-    database = None
-    if name == 'spencer':
-        database = spencer_ternary
-    elif name == 'marion':
-        database = marion_ternary
-    return database
-
-
-@hash_dict
-@lru_cache(maxsize=None)
-def find_parameter_value(pair, dbname, parameter_name, col_name):
-    """
-    Find values for parameters from database based on ion names.
-    :param pair: a tuple of ion pair.
-    :param dbname: database name.
-    :param parameter_name: the name of the parameter, e.g. 'b0', 'b1' ...
-    :param col_name:
-    :return:
-    """
-    database = get_two_ion_db(dbname)
-
-    first_level_df = database.loc[parameter_name]
-    ion_pairs = first_level_df.index
-
-    parameter = 0
-    for key in ion_pairs:
-        if {pair[0], pair[1]} == set(key):
-            parameter = first_level_df.loc[key, col_name]
-
-    if isinstance(parameter, pd.Series):
-        parameter = parameter.values[0]
-
-    return float(parameter)
-
-
-def binary_parameters_ready(pair, t, dbname):
-    """
-    Make the A0 - A5 value parameters ready in a dictionary for further selection and calculating
-    :param pair: a tuple of ion pair.
-    :param t: temperature.
-    :return: values of parameters.
-    """
-    if 'Fe+2' in pair:
-        dbname = 'marion'
-
-    database = get_two_ion_db(dbname)
-
-    # get the number of columns
-    table_width = len(database.columns)
-
-    parameter_names = ['b0', 'b1', 'b2', 'c_phi', 'theta', 'lambda']
-    dic = {}
-    for pn in parameter_names:
-        for col in database.columns[:table_width]:
-            value = find_parameter_value(pair, dbname, pn, col)
-            dic[pn + '_' + col] = value
-    return dic
-
-
-
-def ternary_parameters_ready(pair, t, dbname):
-    """
-    Make parameters ready in a dictionary for further selection and calculating
-    :param pair: A tuple a three ions.
-    :return: Interaction parameters of this group of ions.
-    """
-    if 'Fe+2' in pair:
-        dbname = 'marion'
-
-    database = get_three_ion_db(dbname)
-
-    pns = ['psi', 'zeta']
-    parameters = {}
-    for pn in pns:
-        first_level_df = database.loc[pn]
-        ion_pairs = first_level_df.index
-        col_list = database.columns
-
-        match = find_pair(pair, ion_pairs)
-        if match['has']:
-            target = match['target']
-            for col in col_list:
-                parameter = first_level_df.loc[target, col]
-                parameters[pn + '_' + col] = parameter
-        else:
-            for col in col_list:
-                parameter = 0
-                parameters[pn + '_' + col] = parameter
+# Query methods from json db.
+def binary_query(ion_pair):
+    binary_pair = ",".join(sorted(list(ion_pair)))
+    parameters = parameter_db['binary'][binary_pair]
     return parameters
+
+def ternary_query(ion_pair):
+    ternary_pair = ",".join(sorted(list(ion_pair)))
+    parameters = parameter_db['ternary'][ternary_pair]
+    return parameters
+
+
+
+def ternary_parameter_cal(pair, T):
+    parameters = ternary_query(pair)
+
+    para_psi  = list(parameters['psi'].values())
+    para_zeta = list(parameters['zeta'].values()) if 'zeta' in parameters else None
+    eq_num = parameters['eq_num']
+
+    psi = get_parameter_pypitzer(para_psi, T, eq_num)
+    zeta = get_parameter_pypitzer(para_zeta, T, eq_num) if para_zeta else 0
+    return (psi, zeta)
 
 
 def chemical_potential_lassin(a1, a2, a3, a4, a5, t):
@@ -173,14 +63,13 @@ def parameter_cal_lassin(a1, a2, a3, a4, a5, a6, a7, a8, t):
     p = a1 + a2 * t + a3 * t ** 2 + a4 * t ** 3 + a5 / t + a6 * np.log(t) + a7 / (t - 263) + a8 / (680 - t)
     return p
 
-
 def parameter_cal_spencer(a1, a2, a3, a4, a5, a6, t):
     parameter = a1 + a2 * t + a3 * t ** 2 + a4 * t ** 3 + a5 / t + a6 * np.log(t)
     return parameter
 
 def parameter_fun_spencer(a, T):
-    parameter = a[0] + a[1] * T + a[2] * T ** 2 + a[3] * T ** 3 + a[4] / T + a[5] * np.log(T)
-    return parameter
+    return a[0] + a[1] * T + a[2] * T ** 2 + a[3] * T ** 3 + a[4] / T + a[5] * np.log(T)
+
 
 def parameter_cal_moller(a1, a2, a3, a4, a5, a6, a7, a8, t):
     p = a1 + a2 * t + a3 / t + a4 * np.log(t) + a5 / (t - 263) + a6 * t ** 2 + a7 / (680 - t) + a8 / (t - 227)
@@ -207,7 +96,7 @@ def get_parameter_lassin(name, data, t):
     :param method: method used to calculate parameter, default is 'spencer'.
     :return: value of the parameter.
     """
-    # print(data)
+
     a1 = data['{}_a1'.format(name)]
     a2 = data['{}_a2'.format(name)]
     a3 = data['{}_a3'.format(name)]
@@ -264,7 +153,7 @@ def get_parameter_holmes(name, data, t):
     :param method: method used to calculate parameter, default is 'spencer'.
     :return: value of the parameter.
     """
-    # print(data)
+
     a1 = data['{}_a1'.format(name)]
     a2 = data['{}_a2'.format(name)]
     a3 = data['{}_a3'.format(name)]
@@ -287,7 +176,7 @@ def get_parameter_moller(name, data, t):
     :param method: method used to calculate parameter, default is 'spencer'.
     :return: value of the parameter.
     """
-    # print(data)
+
     a1 = data['{}_a1'.format(name)]
     a2 = data['{}_a2'.format(name)]
     a3 = data['{}_a3'.format(name)]
@@ -426,30 +315,28 @@ def a_phi_spencer(T):
 
 def g_func(a):
     result = 2 * (
-            1 - (1 + a) * exp(-a)
+            1 - (1 + a) * np.exp(-a)
     ) / a ** 2
     return result
 
 
 def g_func_prime(a):
     g_prime = -2 * (
-            1 - (1 + a + a ** 2 / 2) * exp(-a)
+            1 - (1 + a + a ** 2 / 2) * np.exp(-a)
     ) / a ** 2
     return g_prime
 
 
 def get_beta(parameters, pair, i):
-    charge_number1 = get_charge_number(pair[0])
-    charge_number2 = get_charge_number(pair[1])
+    z1 = get_charge_number(pair[0])
+    z2 = get_charge_number(pair[1])
 
     alpha = 2  # kg^(1/2)⋅mol^(-1/2)
     alpha_1 = 1.4  # kg^(1/2)⋅mol^(-1/2)
     alpha_2 = 12  # kg^(1/2)⋅mol^(-1/2)
-    b0 = parameters['b0']
-    b1 = parameters['b1']
-    b2 = parameters['b2']
+    b0, b1, b2 = parameters
 
-    if abs(charge_number1) == 2 and abs(charge_number2) == 2:
+    if abs(z1) == 2 and abs(z2) == 2:
         beta_mx = b0 + b1 * g_func(
             alpha_1 * (i ** (1 / 2))
         ) + b2 * g_func(
@@ -469,10 +356,7 @@ def get_beta_prime(parameters, pair, i):
     alpha = 2  # kg^(1/2)⋅mol^(-1/2)
     alpha_1 = 1.4  # kg^(1/2)⋅mol^(-1/2)
     alpha_2 = 12  # kg^(1/2)⋅mol^(-1/2)
-    b0 = parameters['b0']
-    b1 = parameters['b1']
-    b2 = parameters['b2']
-
+    b0, b1, b2 = parameters
     if abs(charge_number1) == 2 and abs(charge_number2) == 2:
         beta_prime = (
                              b1 * g_func_prime(
@@ -498,17 +382,15 @@ def get_beta_phi(parameters, pair, i):
 
     """for 2-2 type salts"""
     if abs(z1) == 2 and abs(z2) == 2:
-        beta_phi = b0 + b1 * exp(-alpha_1 * (i ** (1 / 2))) + b2 * exp(-alpha_2 * (i ** (1 / 2)))
+        beta_phi = b0 + b1 * np.exp(-alpha_1 * (i ** (1 / 2))) + b2 * np.exp(-alpha_2 * (i ** (1 / 2)))
     else:
         """for 1-1, 1-2, 2-1, 3-1, 4-1 type salts"""
-        beta_phi = b0 + b1 * exp(-alpha * (i ** (1 / 2)))
+        beta_phi = b0 + b1 * np.exp(-alpha * (i ** (1 / 2)))
     return beta_phi
-
 
 def get_c(c_phi, z_m, z_x):
     c_mx = c_phi / (2 * (abs(z_m * z_x)) ** 0.5)
     return c_mx
-
 
 def get_c_gamma(c_phi):
     c_gamma = 3 * c_phi / 2
@@ -522,7 +404,7 @@ def get_f(a_phi, i):
     :return: expression of "f" function
     """
     b = 1.2
-    f = - (4 * i * a_phi / b) * ln(1 + b * i ** (1 / 2))
+    f = - (4 * i * a_phi / b) * np.log(1 + b * i ** (1 / 2))
     return f
 
 
@@ -592,8 +474,6 @@ def get_e_theta(z_m, z_n, a_phi, i):
     }
 
 
-# @hash_dict
-# @lru_cache(maxsize=None)
 def calculate_ionic_strength(molalities):
     data = molalities
     ions = data.keys()
@@ -604,8 +484,7 @@ def calculate_ionic_strength(molalities):
     return sum_value / 2
 
 
-@hash_dict
-@lru_cache(maxsize=None)
+
 def calculate_molality(x, species):
     x1, x2 = x
     molalities = {}
@@ -616,8 +495,7 @@ def calculate_molality(x, species):
     return molalities
 
 
-# @hash_dict
-# @lru_cache(maxsize=None)
+
 def calculate_charge_balance(x, molalities):
     balance = 0
     for species in molalities.keys():
@@ -625,7 +503,6 @@ def calculate_charge_balance(x, molalities):
     return balance
 
 
-@lru_cache(maxsize=None)
 def get_chemical_potential(species, t):
     """
     Calculate the standard chemical potential of solids melting reaction.
@@ -677,8 +554,6 @@ def get_hydrate_data(solid):
     return data
 
 
-@hash_dict
-@lru_cache(maxsize=None)
 def group_components(components):
     """
     Find groups from components of ions and neutral species
@@ -711,140 +586,80 @@ def group_components(components):
     }
 
 
-"""
-Pitzer-model-only methods
-"""
-
-
-@hash_dict
-@lru_cache(maxsize=None)
-def get_beta_012(rd, t, method):
-    b0 = 0
-    b1 = 0
-    b2 = 0
-    if method == 'lassin':
-        b0 = get_parameter_lassin(name='b0', data=rd, t=t)
-        b1 = get_parameter_lassin(name='b1', data=rd, t=t)
-        b2 = get_parameter_lassin(name='b2', data=rd, t=t)
-    if method == 'spencer':
-        b0 = get_parameter_spencer(name='b0', data=rd, t=t)
-        b1 = get_parameter_spencer(name='b1', data=rd, t=t)
-        b2 = get_parameter_spencer(name='b2', data=rd, t=t)
-    if method == 'marion':
-        b0 = get_parameter_marion(name='b0', data=rd, t=t)
-        b1 = get_parameter_marion(name='b1', data=rd, t=t)
-        b2 = get_parameter_marion(name='b2', data=rd, t=t)
-    elif method == 'moller':
-        b0 = get_parameter_moller(name='b0', data=rd, t=t)
-        b1 = get_parameter_moller(name='b1', data=rd, t=t)
-        b2 = get_parameter_moller(name='b2', data=rd, t=t)
-    elif method == 'holmes':
-        b0 = get_parameter_holmes(name='b0', data=rd, t=t)
-        b1 = get_parameter_holmes(name='b1', data=rd, t=t)
-        b2 = get_parameter_holmes(name='b2', data=rd, t=t)
-    return {
-        'b0': b0,
-        'b1': b1,
-        'b2': b2,
-    }
-
-
-# @hash_dict
-# @lru_cache(maxsize=None)
-# def beta_calculate(ion_pair, ionic_strength, T, database):
-#     rd = binary_parameters_ready(ion_pair, T, database)
-#     if 'Li+' in ion_pair or 'Cs+' in ion_pair:
-#         method = 'holmes'
-#     elif 'Fe+2' in ion_pair:
-#         method = 'marion'
-#     else:
-#         method = 'spencer'
-#     beta_012 = get_beta_012(rd, T, method=method)
-
-#     beta = get_beta(beta_012, ion_pair, ionic_strength)
-#     return beta
 
 def get_parameter_pypitzer(parameters, T, eq_num):
     if eq_num == 0:
         return parameter_fun_spencer(parameters, T)
+    return parameter_fun_spencer(parameters, T)
 
 
-def beta_calculate_new(ion_pair, ionic_strength, T, database):
-    binary_pair = ",".join(sorted(list(ion_pair)))
-    parameters = parameter_db['binary'][binary_pair]
+def get_beta_012(ion_pair, T):
+    parameters = binary_query(ion_pair)
 
     para_b0 = list(parameters['b0'].values())
     para_b1 = list(parameters['b1'].values())
-    para_b2 = list(parameters['b2'].values())
+    para_b2 = list(parameters['b2'].values()) if "b2" in parameters else None
     eq_num = parameters['eq_num']
-    b0 =get_parameter_pypitzer(para_b0, T, eq_num) 
-    b1 =get_parameter_pypitzer(para_b1, T, eq_num)
-    b2 =get_parameter_pypitzer(para_b2, T, eq_num) 
-    
-    b_phi = get_beta_phi((b0, b1, b2), ion_pair, ionic_strength)
 
+    b0 = get_parameter_pypitzer(para_b0, T, eq_num) 
+    b1 = get_parameter_pypitzer(para_b1, T, eq_num)
+    b2 = get_parameter_pypitzer(para_b2, T, eq_num) if para_b2 else 0
+    return (b0, b1, b2)
+
+
+def beta_calculate(ion_pair, ionic_strength, T):
+    beta_012 = get_beta_012(ion_pair, T)
+    b_phi = get_beta(beta_012, ion_pair, ionic_strength)
     return b_phi
 
 
-
-@hash_dict
-@lru_cache(maxsize=None)
-def beta_phi_calculate(ion_pair, ionic_strength, t, database):
-    rd = binary_parameters_ready(ion_pair, t, database)
-    if 'Li+' in ion_pair or 'Cs+' in ion_pair:
-        method = 'holmes'
-    else:
-        method = 'spencer'
-    beta_012 = get_beta_012(rd, t, method=method)
+def beta_phi_calculate(ion_pair, ionic_strength, T):
+    beta_012 = get_beta_012(ion_pair, T)
     b_phi = get_beta_phi(beta_012, ion_pair, ionic_strength)
-
     return b_phi
 
 
-@hash_dict
-@lru_cache(maxsize=None)
-def beta_prime_calculate(ion_pair, ionic_strength, t, database):
-    rd = binary_parameters_ready(ion_pair, t, database)
 
-    if 'Li+' in ion_pair or 'Cs+' in ion_pair:
-        method = 'holmes'
-    else:
-        method = 'spencer'
-    beta_012 = get_beta_012(rd, t, method=method)
+def beta_prime_calculate(ion_pair, ionic_strength, T):
+    beta_012 = get_beta_012(ion_pair, T)
     b_prime = get_beta_prime(beta_012, ion_pair, ionic_strength)
     return b_prime
 
 
-@hash_dict
-@lru_cache(maxsize=None)
-def c_calculate(ion_pair, t, database):
-    rd = binary_parameters_ready(ion_pair, t, database)
-    if 'Li+' in ion_pair or 'Cs+' in ion_pair:
-        c0 = get_parameter_holmes(name='c_phi', data=rd, t=t)
-    else:
-        c0 = get_parameter_spencer(name='c_phi', data=rd, t=t)
-    charge_number1 = get_charge_number(ion_pair[0])
-    charge_number2 = get_charge_number(ion_pair[1])
-    c = get_c(c0, charge_number1, charge_number2)
+def c_calculate(ion_pair, T):
+    parameters = binary_query(ion_pair)
+    para_cphi = list(parameters['c_phi'].values())
+
+    eq_num = parameters['eq_num']
+    c0 = get_parameter_pypitzer(para_cphi, T, eq_num)
+
+    z1 = get_charge_number(ion_pair[0])
+    z2 = get_charge_number(ion_pair[1])
+
+    c = get_c(c0, z1, z2)
     return c
 
 
-@hash_dict
-@lru_cache(maxsize=None)
-def cc_phi_calculate(ion_pair, a_phi, ionic_strength, t, database):
-    charge_number1 = get_charge_number(ion_pair[0])
-    charge_number2 = get_charge_number(ion_pair[1])
-    rd = binary_parameters_ready(ion_pair, t, database)
 
-    theta = get_parameter_spencer(name='theta', data=rd, t=t)
 
-    if charge_number1 != charge_number2:
-        e_thetas = get_e_theta(charge_number1, charge_number2, a_phi, ionic_strength)
+def cc_phi_calculate(ion_pair, a_phi, ionic_strength, T):
+    z1 = get_charge_number(ion_pair[0])
+    z2 = get_charge_number(ion_pair[1])
+    parameters = binary_query(ion_pair)
+
+    para_theta = list(parameters['theta'].values())
+    eq_num = parameters['eq_num']
+
+    theta = get_parameter_pypitzer(para_theta, T, eq_num)
+
+    if z1 != z2:
+        e_thetas = get_e_theta(z1, z2, a_phi, ionic_strength)
         e_theta = e_thetas['e_theta']
         e_theta_prime = e_thetas['e_theta_prime']
     else:
         e_theta = 0
         e_theta_prime = 0
+
     phi = theta + e_theta
     phi_prime = e_theta_prime
 
@@ -854,25 +669,24 @@ def cc_phi_calculate(ion_pair, a_phi, ionic_strength, t, database):
     }
 
 
-@hash_dict
-@lru_cache(maxsize=None)
-def aa_phi_calculate(ion_pair, a_phi, ionic_strength, t, database):
-    charge_number1 = get_charge_number(ion_pair[0])
-    charge_number2 = get_charge_number(ion_pair[1])
+def aa_phi_calculate(ion_pair, a_phi, ionic_strength, T):
+    z1 = get_charge_number(ion_pair[0])
+    z2 = get_charge_number(ion_pair[1])
 
-    rd = binary_parameters_ready(ion_pair, t, database)
+    parameters = binary_query(ion_pair)
 
-    if 'Li+' in ion_pair or 'LiCl0' in ion_pair:
-        theta = get_parameter_lassin(name='theta', data=rd, t=t)
-    else:
-        theta = get_parameter_spencer(name='theta', data=rd, t=t)
-    if charge_number1 != charge_number2:
-        e_thetas = get_e_theta(charge_number1, charge_number2, a_phi, ionic_strength)
+    para_theta = list(parameters['theta'].values())
+    eq_num = parameters['eq_num']
+
+    theta = get_parameter_pypitzer(para_theta, T, eq_num)
+    if z1 != z2:
+        e_thetas = get_e_theta(z1, z2, a_phi, ionic_strength)
         e_theta = e_thetas['e_theta']
         e_theta_prime = e_thetas['e_theta_prime']
     else:
         e_theta = 0
         e_theta_prime = 0
+
     phi = theta + e_theta
     phi_prime = e_theta_prime
 
@@ -880,7 +694,6 @@ def aa_phi_calculate(ion_pair, a_phi, ionic_strength, t, database):
         "phi": phi,
         "phi_prime": phi_prime
     }
-
 
 """
 Reference
