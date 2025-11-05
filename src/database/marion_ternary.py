@@ -9,9 +9,7 @@ import pandas as pd
 pd.set_option('display.precision', 11)
 species = {
     ('psi', 'Cl-', 'Fe+2', 'Na+'): {
-        'a1': -1.4e-2, # Marion et al. 2003
-        # 'a1': -0.01605,
-        # 'a1': -0.01, # Christov 2004
+        'a1': -1.4e-2, 
         'a2': 0,
         'a3': 0,
         'a4': 0,

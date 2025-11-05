@@ -13,26 +13,33 @@ import itertools
 # from src.database.marion_chemical_potential import marion_chemical_potential_db
 # from src.database.lassin_chemical_potential import lassin_chemical_potential_db
 # from src.database.solid_data import solids
-
+from src.database.db_query import PypitzerDB
 from src.public.j_x import compute_j_jp
 from src.public.low_level import get_charge_number
 from pathlib import Path
 
 here = Path(__file__).resolve().parent.parent
 
-db_json_path = here / "database/pypitzer_parameter.json"
-with open(db_json_path,"r",encoding="utf-8") as f:
-    parameter_db = json.load(f)
+# db_json_path = here / "database/pypitzer_parameter.json"
+# with open(db_json_path,"r",encoding="utf-8") as f:
+#     parameter_db = json.load(f)
+
+db = PypitzerDB()
+
+def query_str_process(pair):
+    q_str = ",".join(sorted(list(pair)))
+    return q_str
+
 
 # Query methods from json db.
 def binary_query(ion_pair):
     binary_pair = ",".join(sorted(list(ion_pair)))
-    parameters = parameter_db['binary'][binary_pair]
+    parameters = db.get_binary(query_str_process(ion_pair))
     return parameters
 
 def ternary_query(ion_pair):
     ternary_pair = ",".join(sorted(list(ion_pair)))
-    parameters = parameter_db['ternary'][ternary_pair]
+    parameters = db.get_ternary(query_str_process(ternary_pair))
     return parameters
 
 
@@ -294,35 +301,57 @@ def get_chemical_potential(parameters, T, eq_num):
         return 0
 
 
+import itertools
+
+def order_tuple(t):
+    """
+    Order elements of a tuple alphabetically.
+    Example: ("Na+", "Cl-") -> ("Cl-", "Na+")
+    """
+    return tuple(sorted([str(x).strip() for x in t]))
+
 def group_components(components):
     """
-    Find groups from components of ions and neutral species
-    :param components: consists of cations, anions and neutral species.
-    :return: groups
+    Find groups from components of ions and neutral species.
+    :param components: list of cations, anions, and neutral species.
+    :return: dictionary of grouped components with tuples
     """
     cations = [c for c in components if '+' in c]
     anions = [a for a in components if '-' in a]
     neutrals = [n for n in components if '+' not in n and '-' not in n]
 
-    cation_anion_pairs = list(itertools.product(cations, anions))
-    cation_pairs = list(itertools.combinations(cations, 2)) if len(cations) >= 2 else []
-    anion_pairs = list(itertools.combinations(anions, 2)) if len(anions) >= 2 else []
-    neutral_pairs = list(itertools.combinations(neutrals, 2))
+    # Basic pairs
+    cation_anion_pairs = [order_tuple(p) for p in itertools.product(cations, anions)]
+    cation_pairs = [order_tuple(p) for p in itertools.combinations(cations, 2)] if len(cations) >= 2 else []
+    anion_pairs = [order_tuple(p) for p in itertools.combinations(anions, 2)] if len(anions) >= 2 else []
+    neutral_pairs = [order_tuple(p) for p in itertools.combinations(neutrals, 2)]
+    neutral_ion_pairs = [order_tuple(p) for p in itertools.product(neutrals, cations + anions)]
+    neutral_cation_anion_pairs = [order_tuple((n, c, a)) for n in neutrals for c, a in itertools.product(cations, anions)]
 
-    neutral_ion_pairs = list(itertools.product(neutrals, cations + anions))
+    # Additional triplets
+    cca = [order_tuple((c1, c2, a)) for c1, c2 in itertools.combinations(cations, 2) for a in anions]
+    aac = [order_tuple((a1, a2, c)) for a1, a2 in itertools.combinations(anions, 2) for c in cations]
 
-    neutral_cation_anion_pairs = [(a, *b) for a in neutrals for b in cation_anion_pairs]
+    # Neutral-cation / neutral-anion pairs
+    nc = [order_tuple((n, c)) for n in neutrals for c in cations]
+    na = [order_tuple((n, a)) for n in neutrals for a in anions]
+    nca = [order_tuple((n, c, a)) for n in neutrals for c, a in itertools.product(cations, anions)]
 
     return {
-        'cations': cations,
-        'anions': anions,
-        'neutrals': neutrals,
-        'cation_anion_pairs': cation_anion_pairs,
-        'cation_pairs': cation_pairs,
-        'anion_pairs': anion_pairs,
-        'neutral_pairs': neutral_pairs,
-        'neutral_ion_pairs': neutral_ion_pairs,
-        'neutral_cation_anion_pairs': neutral_cation_anion_pairs
+        'cations': tuple(cations),
+        'anions': tuple(anions),
+        'neutrals': tuple(neutrals),
+        'cation_anion_pairs': tuple(cation_anion_pairs),
+        'cation_pairs': tuple(cation_pairs),
+        'anion_pairs': tuple(anion_pairs),
+        'nn': tuple(neutral_pairs),
+        'neutral_ion_pairs': tuple(neutral_ion_pairs),
+        'neutral_cation_anion_pairs': tuple(neutral_cation_anion_pairs),
+        'cca': tuple(cca),
+        'aac': tuple(aac),
+        'nc': tuple(nc),
+        'na': tuple(na),
+        'nca': tuple(nca)
     }
 
 
@@ -333,11 +362,11 @@ def get_parameter_pypitzer(parameters, T, eq_num):
     return parameter_fun_spencer(parameters, T)
 
 
-def ternary_parameter_cal(pair, T):
-    parameters = ternary_query(pair)
+def ternary_parameter_cal(T, parameters):
+    # parameters = db.get_ternary(query_str_process(pair))
 
-    para_psi  = list(parameters['psi'].values())
-    para_zeta = list(parameters['zeta'].values()) if 'zeta' in parameters else None
+    para_psi  = parameters['psi']
+    para_zeta = parameters['zeta'] if 'zeta' in parameters else None
     eq_num = parameters['eq_num']
 
     psi = get_parameter_pypitzer(para_psi, T, eq_num)
@@ -345,12 +374,12 @@ def ternary_parameter_cal(pair, T):
     return (psi, zeta)
 
 
-def get_beta_012(ion_pair, T):
-    parameters = binary_query(ion_pair)
+def get_beta_012(ion_pair, T, parameters):
+    # parameters = db.get_binary(query_str_process(ion_pair))
 
-    para_b0 = list(parameters['b0'].values())
-    para_b1 = list(parameters['b1'].values())
-    para_b2 = list(parameters['b2'].values()) if "b2" in parameters else None
+    para_b0 = parameters['b0']
+    para_b1 = parameters['b1']
+    para_b2 = parameters['b2'] if "b2" in parameters else None
     eq_num = parameters['eq_num']
 
     b0 = get_parameter_pypitzer(para_b0, T, eq_num) 
@@ -359,25 +388,25 @@ def get_beta_012(ion_pair, T):
     return (b0, b1, b2)
 
 
-def beta_calculate(ion_pair, ionic_strength, T):
-    beta_012 = get_beta_012(ion_pair, T)
+def beta_calculate(ion_pair, ionic_strength, T, parameters):
+    beta_012 = get_beta_012(ion_pair, T, parameters)
     b_phi = get_beta(beta_012, ion_pair, ionic_strength)
     return b_phi
 
 
-def beta_phi_calculate(ion_pair, ionic_strength, T):
-    beta_012 = get_beta_012(ion_pair, T)
+def beta_phi_calculate(ion_pair, ionic_strength, T, parameters):
+    beta_012 = get_beta_012(ion_pair, T, parameters)
     b_phi = get_beta_phi(beta_012, ion_pair, ionic_strength)
     return b_phi
 
-def beta_prime_calculate(ion_pair, ionic_strength, T):
-    beta_012 = get_beta_012(ion_pair, T)
+def beta_prime_calculate(ion_pair, ionic_strength, T, parameters):
+    beta_012 = get_beta_012(ion_pair, T, parameters)
     b_prime = get_beta_prime(beta_012, ion_pair, ionic_strength)
     return b_prime
 
-def c_calculate(ion_pair, T):
-    parameters = binary_query(ion_pair)
-    para_cphi = list(parameters['c_phi'].values())
+def c_calculate(ion_pair, T, parameters):
+    # parameters = db.get_binary(query_str_process(ion_pair))
+    para_cphi = parameters['c_phi']
 
     eq_num = parameters['eq_num']
     c0 = get_parameter_pypitzer(para_cphi, T, eq_num)
@@ -388,20 +417,27 @@ def c_calculate(ion_pair, T):
     c = get_c(c0, z1, z2)
     return c
 
-def lambda_cal(pair,T):
-    parameters = binary_query(pair)
+def lambda_cal(pair,T, parameters):
+    # parameters = binary_query(pair)
 
-    para_lambda = list(parameters['lambda'].values())
+    para_lambda = parameters['lambda']
     eq_num = parameters['eq_num']
     return get_parameter_pypitzer(para_lambda, T, eq_num)
 
 
-def cc_phi_calculate(ion_pair, a_phi, ionic_strength, T):
+def zeta_cal(pair,T, parameters):
+    # parameters = binary_query(pair)
+    para_zeta = parameters['zeta']
+    eq_num = parameters['eq_num']
+    return get_parameter_pypitzer(para_zeta, T, eq_num)
+
+def cc_phi_calculate(ion_pair, a_phi, ionic_strength, T, parameters):
     z1 = get_charge_number(ion_pair[0])
     z2 = get_charge_number(ion_pair[1])
-    parameters = binary_query(ion_pair)
 
-    para_theta = list(parameters['theta'].values())
+    # parameters = db.get_binary(query_str_process(ion_pair))
+
+    para_theta = parameters['theta']
     eq_num = parameters['eq_num']
 
     theta = get_parameter_pypitzer(para_theta, T, eq_num)
@@ -423,11 +459,11 @@ def cc_phi_calculate(ion_pair, a_phi, ionic_strength, T):
     }
 
 
-def aa_phi_calculate(ion_pair, a_phi, ionic_strength, T):
+def aa_phi_calculate(ion_pair, a_phi, ionic_strength, T, parameters):
     z1 = get_charge_number(ion_pair[0])
     z2 = get_charge_number(ion_pair[1])
 
-    parameters = binary_query(ion_pair)
+    # parameters = binary_query(ion_pair)
 
     para_theta = list(parameters['theta'].values())
     eq_num = parameters['eq_num']

@@ -4,45 +4,107 @@
 # Version: 1.0
 # Last Modified: Nov 03, 2025
 
-import sys
-import os
 import time
-
-SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-sys.path.append(os.path.dirname(SCRIPT_DIR))
 
 import numpy as np
 from scipy.optimize import minimize
-from database.solid_data import solids
 
-from public.low_level import type_of_species, get_charge_number
-from public.icemelting import (clegg_and_brimblecombe, spencer, monnin)
+from src.database.db_query import PypitzerDB
+from src.public.low_level import type_of_species, get_charge_number
+from src.public.icemelting import (clegg_and_brimblecombe, spencer, monnin)
 
-import Pitzer.methods as pm
+import src.Pitzer.methods as pm
 
-from functools import lru_cache, wraps
+db = PypitzerDB()
 
 
 class FluidPitzer:
-    def __init__(self, x0, species,  solids, t=25, neutral=False, ):
+    def __init__(self, x0, species, equilibrium, t=25.0, neutral=False, ):
         """
         Initiate the solution.
-        :param x0: initiate values of x(x1, x2), namely value of mNa and mCl.
-        :param species: define species of a solution.
+        :param x0: initiate values of x(x1, x2), namely value of mNa and mCl, [mol/kg].
+        :param species: a dict containing aqueous spcies and their relative concentrations to Na, [-].
         :param t: melting temperature, [°C].
-        :param database: str, which database to use.
-        :param solids: define which solid(s) to be used for building solubility equilibrium.
+        :param equilibrium: str, a chemical expression indicating the solubility equilibrium, e.g., "NaCl(s) = Na+(aq) + Cl-(aq)".
         """
         self.x0 = x0
-        self.t = t + 273.16
-        self.species = species
-        self.solids = solids
+        self.T = t + 273.16
+        self.input_species = species
+        self.equilibrium = equilibrium
         self.neutral = neutral  # to determine if a neutral species is considered in this fluid.
+        self.solid_disso = db.get_reaction(equilibrium)
 
-    def get_species(self):
-        species = self.species
-        species['Cl-'] = 0 # add Cl into the dict and set a default value of 0.
-        return species
+        self._species = None
+        self._component_groups = None
+        self._param_db = None
+
+    @property
+    def species(self):
+        if self._species is None :
+            species = self.input_species
+            species['Cl-'] = 0 # add Cl into the dict and set a default value of 0.
+            self._species = species
+        return  self._species
+    
+    @property
+    def component_groups(self):
+        if self._component_groups is None:
+            components = tuple(self.species.keys())
+            self._component_groups = pm.group_components(components)
+        return self._component_groups
+    
+    @staticmethod
+    def order_str(tuple_pair):
+        """
+        Order elements of a tuple alphabetically and join them as a string.
+        Example: ("Na+", "Cl-") -> "Cl-,Na+"
+        """
+        sorted_list = sorted([str(x).strip() for x in tuple_pair])
+        return ",".join(sorted_list)
+
+    @property
+    def param_db(self):
+        result = {}
+        if self._param_db is None:
+            if self.component_groups['cation_anion_pairs']:
+                for ca in self.component_groups['cation_anion_pairs']:
+                    ca_str = self.order_str(ca)
+                    result[ca_str] = db.get_binary(ca_str)
+            if self.component_groups['cation_pairs']:
+                for cc in self.component_groups['cation_pairs']:
+                    cc_str = self.order_str(cc)
+                    result[cc_str] = db.get_binary(cc_str)
+            if self.component_groups['anion_pairs']:
+                for aa in self.component_groups['anion_pairs']:
+                    aa_str = self.order_str(aa)
+                    result[aa_str] = db.get_binary(aa_str)
+            if self.component_groups['nc']:
+                for pair in self.component_groups['nc']:
+                    pair_str = self.order_str(pair)
+                    result[pair_str] = db.get_binary(pair_str)
+            if self.component_groups['na']:
+                for pair in self.component_groups['na']:
+                    pair_str = self.order_str(pair)
+                    result[pair_str] = db.get_binary(pair_str)
+            if self.component_groups['nn']:
+                for pair in self.component_groups['nn']:
+                    pair_str = self.order_str(pair)
+                    result[pair_str] = db.get_binary(pair_str)
+            if self.component_groups['nca']:
+                for pair in self.component_groups['nca']:
+                    pair_str = self.order_str(pair)
+                    result[pair_str ] = db.get_ternary(pair_str )
+            if self.component_groups['cca']:
+                for pair in self.component_groups['cca']:
+                    pair_str = self.order_str(pair)
+                    result[pair_str] = db.get_ternary(pair_str)
+            if self.component_groups['aac']:
+                for pair in self.component_groups['aac']:
+                    pair_str = self.order_str(pair)
+                    result[pair_str] = db.get_ternary(pair_str)
+            self._param_db = result 
+        return self._param_db 
+
 
     def get_molalities(self, x):
         """
@@ -50,7 +112,7 @@ class FluidPitzer:
         x1: molality of Na
         x2: molality of Cl
         """
-        molalities = pm.calculate_molality(tuple(x), self.get_species())
+        molalities = pm.calculate_molality(tuple(x), self.species)
         return molalities
 
     def charge_balance(self, x):
@@ -74,7 +136,7 @@ class FluidPitzer:
 
         for ion in molalities.keys():
             charge_number = get_charge_number(ion)
-            sum_value += molalities[ion] * (charge_number ** 2)
+            sum_value += molalities[ion] * charge_number ** 2
         return sum_value / 2
     
 
@@ -87,33 +149,33 @@ class FluidPitzer:
             z_value += molalities[ion] * abs(charge_number)
         return z_value
 
-    def get_component_groups(self):
-        components = tuple(self.get_species().keys())
-        groups = pm.group_components(components)
-        return groups
 
     def get_a_phi(self):
-        return pm.a_phi_spencer(self.t)
+        return pm.a_phi_spencer(self.T)
 
     def get_b(self, x):
         pair_parameters = {}
-        cation_anion_pairs = self.get_component_groups()['cation_anion_pairs']
+        cation_anion_pairs = self.component_groups['cation_anion_pairs']
         for cap in cation_anion_pairs:
+            parameters = self.param_db[self.order_str(cap)]
             pair_parameters[cap] = pm.beta_calculate(
                 ion_pair=cap,
                 ionic_strength=self.get_ionic_strength(x),
-                T=self.t
+                T=self.T,
+                parameters = parameters
             )
         return pair_parameters
 
     def get_b_phi(self, x):
         pair_parameters = {}
-        cation_anion_pairs = self.get_component_groups()['cation_anion_pairs']
+        cation_anion_pairs = self.component_groups['cation_anion_pairs']
         for cap in cation_anion_pairs:
+            parameters = self.param_db[self.order_str(cap)]
             pair_parameters[cap] = pm.beta_phi_calculate(
                 ion_pair=cap,
                 ionic_strength=self.get_ionic_strength(x),
-                T=self.t
+                T=self.T,
+                parameters = parameters
             )
 
         return pair_parameters
@@ -126,35 +188,41 @@ class FluidPitzer:
         """
 
         pair_parameters = {}
-        cation_anion_pairs = self.get_component_groups()['cation_anion_pairs']
+        cation_anion_pairs = self.component_groups['cation_anion_pairs']
 
         for cap in cation_anion_pairs:
+            parameters = self.param_db[self.order_str(cap)]
             pair_parameters[cap] = pm.beta_prime_calculate(
                 ion_pair=cap,
                 ionic_strength=self.get_ionic_strength(x),
-                T=self.t,
+                T=self.T,
+                parameters = parameters
             )
         return pair_parameters
 
-    def get_c(self, c):
+    def get_c(self):
         pair_parameters = {}
-        cation_anion_pairs = self.get_component_groups()['cation_anion_pairs']
+        cation_anion_pairs = self.component_groups['cation_anion_pairs']
         for cap in cation_anion_pairs:
+            parameters = self.param_db[self.order_str(cap)]
             pair_parameters[cap] = pm.c_calculate(
                 ion_pair=cap,
-                T=self.t,
+                T=self.T,
+                parameters = parameters
             )
         return pair_parameters
 
     def get_cc_phi(self, x):
-        cation_pairs = self.get_component_groups()['cation_pairs']
+        cation_pairs = self.component_groups['cation_pairs']
         phi_dict = {}
-        for cation_pair in cation_pairs:
-            phi_dict[cation_pair] = pm.cc_phi_calculate(
-                ion_pair=cation_pair,
+        for cap in cation_pairs:
+            parameters = self.param_db[self.order_str(cap)]
+            phi_dict[cap] = pm.cc_phi_calculate(
+                ion_pair=cap,
                 ionic_strength=self.get_ionic_strength(x),
                 a_phi=self.get_a_phi(),
-                T=self.t,
+                T=self.T,
+                parameters = parameters
             )
         return phi_dict
 
@@ -167,21 +235,23 @@ class FluidPitzer:
         return dict
 
     def get_aa_phi(self, x):
-        if self.get_component_groups()['anion_pairs']:
-            anion_pairs = self.get_component_groups()['anion_pairs']
+        if self.component_groups['anion_pairs']:
+            anion_pairs = self.component_groups['anion_pairs']
             phi_dict = {}
-            for anion_pair in anion_pairs:
-                phi_dict[anion_pair] = pm.aa_phi_calculate(
-                    ion_pair=anion_pair,
+            for aap in anion_pairs:
+                parameters = self.param_db[self.order_str(aap)]
+                phi_dict[aap] = pm.aa_phi_calculate(
+                    ion_pair=aap,
                     ionic_strength=self.get_ionic_strength(x),
                     a_phi=self.get_a_phi(),
-                    T=self.t,
+                    T=self.T,
+                    parameters=parameters
                 )
             return phi_dict
         return {}
 
     def get_aa_phi_prime_phi(self, x):
-        if self.get_component_groups()['anion_pairs']:
+        if self.component_groups['anion_pairs']:
             i = self.get_ionic_strength(x)
             dict = {}
             phis = self.get_aa_phi(x)
@@ -191,79 +261,72 @@ class FluidPitzer:
         else: 
             return {}
 
-    def get_cca_psi(self, x):
-        component_groups = self.get_component_groups()
-        cation_pairs = component_groups['cation_pairs']
-        anions = component_groups['anions']
+    def get_cca_psi(self):
+        
+        cation_pairs = self.component_groups['cation_pairs']
+        anions = self.component_groups['anions']
         cca_pairs = {}
         for cation_pair in cation_pairs:
             cation1 = cation_pair[0]
             cation2 = cation_pair[1]
             for anion in anions:
-                # rd = pm.ternary_parameters_ready((cation1, cation2, anion), self.t, dbname=self.database)
-                ternary_parameters = pm.ternary_parameter_cal(pair=(cation1, cation2, anion), T= self.t)
+                parameters = self.param_db[self.order_str((cation1, cation2, anion))]
+                ternary_parameters = pm.ternary_parameter_cal(self.T, parameters)
                 cca_pairs[cation1, cation2, anion] = ternary_parameters[0]
         return cca_pairs
 
-    def get_aac_psi(self, x):
-        component_groups = self.get_component_groups()
-        anion_pairs = component_groups['anion_pairs']
+    def get_aac_psi(self):
+        anion_pairs = self.component_groups['anion_pairs']
         if anion_pairs:
-            cations = component_groups['cations']
+            cations = self.component_groups['cations']
             aac_pairs = {}
             for anion_pair in anion_pairs:
                 anion_list = list(anion_pair)
-                anion1 = anion_list[0]
-                anion2 = anion_list[1]
+                a1 = anion_list[0]
+                a2 = anion_list[1]
                 for cation in cations:
-                    # rd = pm.ternary_parameters_ready((anion1, anion2, cation), self.t, dbname=self.database)
-                    ternary_parameters = pm.ternary_parameter_cal(pair=(anion1, anion2, cation), T= self.t)
-                    # aac_pairs[anion1, anion2, cation] = pm.get_parameter(pair=(anion1, anion2, cation), name='psi',
-                    #                                                      data=rd, t=self.t)
-                    aac_pairs[anion1, anion2, cation] =ternary_parameters[0]
+                    parameters = self.param_db[self.order_str((a1, a2, cation))]
+                    ternary_parameters = pm.ternary_parameter_cal(self.T, parameters)
+                    aac_pairs[a1, a2, cation] =ternary_parameters[0]
             return aac_pairs
         else:
             return {}
 
-    def get_lambdas(self, x):
-        neutral_ion_pairs = self.get_component_groups()['neutral_ion_pairs']
+    def get_lambdas(self):
+        neutral_ion_pairs = self.component_groups['neutral_ion_pairs']
         lambdas = {}
         for pair in neutral_ion_pairs:
-            # rd = pm.binary_parameters_ready(pair=pair, t=self.t)
-            # lambda_value = pm.get_parameter(pair=pair, name='lambda', data=rd, t=self.t)
-            lambdas[pair] = pm.lambda_cal(pair, self.t)
+            parameters = self.param_db[self.order_str(pair)]
+            lambdas[pair] = pm.lambda_cal(pair, self.T, parameters)
         return lambdas
 
-    def get_zetas(self, x):
-        nca_pairs = self.get_component_groups()['neutral_cation_anion_pairs']
+    def get_zetas(self):
+        nca_pairs = self.component_groups['neutral_cation_anion_pairs']
         zetas = {}
         for pair in nca_pairs:
-            # rd = pm.ternary_parameters_ready(pair=pair, t=self.t, dbname=self.database)
-            ternary_parameters = pm.ternary_parameter_cal(pair=pair, T= self.t)
-            # zeta_value = pm.get_parameter(pair=pair, name='zeta', data=rd, t=self.t)
-            zetas[pair] = ternary_parameters[1]
+            parameters = self.param_db[self.order_str(pair)]
+            zetas[pair] = pm.zeta_cal(pair, self.T, parameters)
         return zetas
 
     def get_osmotic_coefficient(self, x):
-        groups = self.get_component_groups()
         molalities = self.get_molalities(x)
         m_sum = sum(molalities.values())
         i = self.get_ionic_strength(x)
         a_phi = self.get_a_phi()
         z = self.get_z(x)
         b = self.get_b_phi(x)
-        c = self.get_c(x)
-        cations = groups['cations']
-        cation_pairs = groups['cation_pairs']
-        anions = groups['anions']
-        anion_pairs = groups['anion_pairs']
+        c = self.get_c()
+        cations = self.component_groups['cations']
+        cation_pairs = self.component_groups['cation_pairs']
+        anions = self.component_groups['anions']
+        anion_pairs = self.component_groups['anion_pairs']
         cc_phis = self.get_cc_phi_prime_phi(x)
-        cca_psis = self.get_cca_psi(x)
+        cca_psis = self.get_cca_psi()
 
-        neutrals = groups['neutrals']
-        lambdas = self.get_lambdas(x)
-        zetas = self.get_zetas(x)
-        nca_pairs = groups['neutral_cation_anion_pairs']
+        neutrals = self.component_groups['neutrals']
+        lambdas = self.get_lambdas()
+        zetas = self.get_zetas()
+        nca_pairs = self.component_groups['neutral_cation_anion_pairs']
 
         item0 = (2 / m_sum)
 
@@ -318,7 +381,7 @@ class FluidPitzer:
 
         if len(anions) > 1:
             aa_phis = self.get_aa_phi_prime_phi(x)
-            aac_psis = self.get_aac_psi(x)
+            aac_psis = self.get_aac_psi()
 
             for ap in anion_pairs:
                 m_a1 = molalities[ap[0]]
@@ -393,7 +456,7 @@ class FluidPitzer:
     def get_f_uppercase(self, x):
         a_phi = self.get_a_phi()
         i = self.get_ionic_strength(x)
-        component_groups = self.get_component_groups()
+        component_groups = self.component_groups
         cation_pairs = component_groups['cation_pairs']
         anion_pairs = component_groups['anion_pairs']
         molalities = self.get_molalities(x)
@@ -448,22 +511,22 @@ class FluidPitzer:
         return f_uppercase
 
     def get_cation_activity_coefficients(self, target_cation, x):
-        groups = self.get_component_groups()
-        cations = groups['cations']
-        anions = groups['anions']
-        anion_pairs = groups['anion_pairs']
-        cation_anion_pairs = groups['cation_anion_pairs']
-        neutrals = groups['neutrals']
+
+        cations = self.component_groups['cations']
+        anions = self.component_groups['anions']
+        anion_pairs =self.component_groups['anion_pairs']
+        cation_anion_pairs = self.component_groups['cation_anion_pairs']
+        neutrals = self.component_groups['neutrals']
         molalities = self.get_molalities(x)
         target_cation = target_cation
         betas = self.get_b(x)
-        cs = self.get_c(x)
+        cs = self.get_c()
         z = self.get_z(x)
-        lambdas = self.get_lambdas(x)
-        zetas = self.get_zetas(x)
+        lambdas = self.get_lambdas()
+        zetas = self.get_zetas()
         cc_phis = self.get_cc_phi(x)
-        cation_psis = self.get_cca_psi(x)
-        anion_psis = self.get_aac_psi(x)
+        cation_psis = self.get_cca_psi()
+        anion_psis = self.get_aac_psi()
 
         f_uppercase = self.get_f_uppercase(x)
         charge_number = get_charge_number(target_cation)
@@ -553,24 +616,24 @@ class FluidPitzer:
         return ln_coefficient
 
     def get_anion_activity_coefficients(self, target_anion, x):
-        groups = self.get_component_groups()
+        groups = self.component_groups
         cations = groups['cations']
         anions = groups['anions']
         cation_pairs = groups['cation_pairs']
         cation_anion_pairs = groups['cation_anion_pairs']
         neutrals = groups['neutrals']
-        lambdas = self.get_lambdas(x)
-        zetas = self.get_zetas(x)
+        lambdas = self.get_lambdas()
+        zetas = self.get_zetas()
         molalities = self.get_molalities(x)
         target_anion = target_anion
         betas = self.get_b(x)
-        cs = self.get_c(x)
+        cs = self.get_c()
         z = self.get_z(x)
 
         aa_phis = self.get_aa_phi(x)
 
-        aac_psis = self.get_aac_psi(x)
-        cca_psis = self.get_cca_psi(x)
+        aac_psis = self.get_aac_psi()
+        cca_psis = self.get_cca_psi()
 
         f_uppercase = self.get_f_uppercase(x)
         charge_number = get_charge_number(target_anion)
@@ -662,15 +725,15 @@ class FluidPitzer:
         return ln_coefficient
 
     def get_neutral_activity_coefficients(self, target_neutral, x):
-        groups = self.get_component_groups()
+        groups = self.component_groups
         cations = groups['cations']
         anions = groups['anions']
         cation_anion_pairs = groups['cation_anion_pairs']
 
         molalities = self.get_molalities(x)
 
-        lambdas = self.get_lambdas(x)
-        zetas = self.get_zetas(x)
+        lambdas = self.get_lambdas()
+        zetas = self.get_zetas()
 
         item0 = 0
         for cation in cations:
@@ -713,44 +776,43 @@ class FluidPitzer:
         for species in molalities.keys():
             species_type = type_of_species(species)
             m_i = molalities[species]
-            ln_gamma = 0
-            if species_type == 0:
-                ln_gamma = self.get_neutral_activity_coefficients(species, x)
-            elif species_type == 1:
-                ln_gamma = self.get_cation_activity_coefficients(species, x)
-            elif species_type == -1:
-                ln_gamma = self.get_anion_activity_coefficients(species, x)
-            total_g += m_i * (0 + r * self.t * (np.log(m_i) + ln_gamma))
+            if m_i != 0:
+                ln_gamma = 0
+                if species_type == 0:
+                    ln_gamma = self.get_neutral_activity_coefficients(species, x)
+                elif species_type == 1:
+                    ln_gamma = self.get_cation_activity_coefficients(species, x)
+                elif species_type == -1:
+                    ln_gamma = self.get_anion_activity_coefficients(species, x)
+                total_g += m_i * (0 + r * self.T * (np.log(m_i) + ln_gamma))
 
         # gibbs energy of water
         ln_a_w = self.get_water_activity(x)
 
-        water_data = pm.Reaction('H2O(l)')
-        water_parameters = list(water_data.analytic.values())
+        water_data = db.get_reaction("H2(g) + 0.5O2(g) = H2O(l)")
+        water_parameters = water_data['analytic']
 
-        std_cp_water = pm.get_chemical_potential(water_parameters, self.t, water_data.eq_num)
+        std_cp_water = pm.get_chemical_potential(water_parameters, self.T, water_data['eq_num'])
 
-        cp_water = (1000 / 18.015) * (std_cp_water + r * self.t * ln_a_w)
+        cp_water = (1000 / 18.015) * (std_cp_water + r * self.T * ln_a_w)
 
         total_g = total_g + cp_water
         return total_g
 
     def solubility_equilibrium(self, x):
         print(x)
-        target_species = self.solids[0]
         lna_pitzer = self.get_water_activity(x)
-        if target_species == 'H2O(s)':
-            lnk_ice = clegg_and_brimblecombe(self.t)
+        if self.equilibrium == 'H2O(s) = H2O(l)':
+            lnk_ice = clegg_and_brimblecombe(self.T)
             # lnk_ice = monnin(self.t)
             # lnk_ice = spencer(self.t)
             f = lnk_ice - lna_pitzer
         else:
-            solid_disso = pm.Reaction(target_species)
-            solid_data = solid_disso.stoich
-            parameters = list(solid_disso.analytic.values())
+            solid_data = self.solid_disso['stoich']
+            parameters = self.solid_disso["analytic"]
 
             molalities = self.get_molalities(x)
-            lnk_potential = pm.get_chemical_potential(parameters, self.t, solid_disso.eq_num)
+            lnk_potential = pm.get_chemical_potential(parameters, self.T, self.solid_disso["eq_num"])
 
             lnk_activity = 0
             for species in solid_data.keys():

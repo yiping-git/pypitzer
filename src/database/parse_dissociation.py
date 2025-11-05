@@ -58,7 +58,7 @@ def get_solid_stoichiometry(reaction_data):
 
         rhs_no_states = clean_state_marks(rhs)
         species_tokens = [tok.strip() for tok in re.split(r'\s+\+\s+', rhs_no_states.strip()) if tok.strip()]
-
+        print(species_tokens)
         stoich = {}
         for tok in species_tokens:
             name, info = parse_species(tok)
@@ -92,7 +92,8 @@ class Reaction:
 
 # Example usage
 if __name__ == '__main__':
-    reaction = Reaction("CaCl2·6H2O(s)")
+    reaction = Reaction("CaCl2-6H2O(s)")
 
-    print(type(reaction.stoich))
+    print(reaction.stoich)
     print(reaction.analytic)
+    # print(parse_species("CaCl2-6H2O(s)"))

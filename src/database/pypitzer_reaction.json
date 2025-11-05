@@ -84,8 +84,8 @@
       25
     ]
   },
-  "NaCl·2H2O(s)": {
-    "reaction": "NaCl·2H2O(s) = Na+(aq) + Cl-(aq) + 2H2O(l)",
+  "NaCl-2H2O(s)": {
+    "reaction": "NaCl-2H2O(s) = Na+(aq) + Cl-(aq) + 2H2O(l)",
     "analytic": {
       "a0": -12222.551,
       "a1": -9.8806459,
@@ -118,8 +118,8 @@
       25
     ]
   },
-  "CaCl2·6H2O(s)": {
-    "reaction":"CaCl2·6H2O(s) = Ca+2(aq) + 2Cl-(aq) + 6H2O(l)",
+  "CaCl2-6H2O(s)": {
+    "reaction":"CaCl2-6H2O(s) = Ca+2(aq) + 2Cl-(aq) + 6H2O(l)",
     "analytic": {
       "a0": 142290.062,
       "a1": 161.973105,
@@ -135,7 +135,7 @@
       25
     ]
   },
-  "MgCl2·6H2O(s)": {
+  "MgCl2-6H2O(s)": {
     "reaction":"MgCl2-6H2O(s) = Mg+2(aq) + 2Cl-(aq) + 6H2O(l)",
     "analytic": {
       "a0": 752.225099,
@@ -152,8 +152,8 @@
       25
     ]
   },
-  "MgCl2·8H2O(s)": {
-    "reaction": "MgCl2·8H2O(s) = Mg+2(aq) + 2Cl-(aq) + 8H2O(l)",
+  "MgCl2-8H2O(s)": {
+    "reaction": "MgCl2-8H2O(s) = Mg+2(aq) + 2Cl-(aq) + 8H2O(l)",
     "analytic": {
       "a0": 2278.01976,
       "a1": 0.649361616,
@@ -169,8 +169,8 @@
       25
     ]
   },
-  "MgCl2·12H2O(s)": {
-    "reaction":"MgCl2·12H2O = Mg+2(aq) + 2Cl-(aq) + 12H2O(l)",
+  "MgCl2-12H2O(s)": {
+    "reaction":"MgCl2-12H2O = Mg+2(aq) + 2Cl-(aq) + 12H2O(l)",
     "analytic": {
       "a0": 255008.896,
       "a1": 244.53224,
@@ -186,8 +186,8 @@
       25
     ]
   },
-  "KCl·MgCl2·6H2O(s)": {
-    "reaction": "KCl·MgCl2·6H2O(s) = K+(aq) + Mg+2(aq) + 3Cl-(aq) + 6H2O(l)",
+  "KCl-MgCl2-6H2O(s)": {
+    "reaction": "KCl-MgCl2-6H2O(s) = K+(aq) + Mg+2(aq) + 3Cl-(aq) + 6H2O(l)",
     "analytic": {
       "a0": -44.5702171,
       "a1": 0.23202379,
@@ -203,8 +203,8 @@
       25
     ]
   },
-  "2KCl·FeCl2·2H2O(s)": {
-    "reaction": "2KCl·FeCl2·2H2O(s) = Fe+2(aq) + 2K+(aq) + 4Cl-(aq) + 2H2O(l)",
+  "2KCl-FeCl2-2H2O(s)": {
+    "reaction": "2KCl-FeCl2-2H2O(s) = Fe+2(aq) + 2K+(aq) + 4Cl-(aq) + 2H2O(l)",
     "analytic": {
       "a0": 12.97,
       "a1": 0,
@@ -220,8 +220,8 @@
       25
     ]
   },
-  "CaCl2·2MgCl2·12H2O(s)": {
-    "reaction": "CaCl2·2MgCl2·12H2O(s) = Ca+2(aq) + 2Mg+2(aq) + 2K+(aq) + 6Cl-(aq) + 12H2O(l)",
+  "CaCl2-2MgCl2-12H2O(s)": {
+    "reaction": "CaCl2-2MgCl2-12H2O(s) = Ca+2(aq) + 2Mg+2(aq) + 2K+(aq) + 6Cl-(aq) + 12H2O(l)",
     "analytic": {
       "a0": 80.3777918,
       "a1": -0.1388069,
@@ -237,8 +237,8 @@
       25
     ]
   },
-  "Na2SO4·10H2O(s)": {
-    "reaction": "Na2SO4·10H2O(s) = 2Na+(aq) + SO4-2(aq) + 10H2O(l)",
+  "Na2SO4-10H2O(s)": {
+    "reaction": "Na2SO4-10H2O(s) = 2Na+(aq) + SO4-2(aq) + 10H2O(l)",
     "analytic": {
       "a0": -46.33773,
       "a1": 0.1753075,
@@ -271,8 +271,8 @@
       25
     ]
   },
-  "MgSO4·6H2O(s)": {
-    "reaction": "MgSO4·6H2O(s) = Mg+2(aq) + SO4-2(aq) + 6H2O(l)",
+  "MgSO4-6H2O(s)": {
+    "reaction": "MgSO4-6H2O(s) = Mg+2(aq) + SO4-2(aq) + 6H2O(l)",
     "analytic": {
       "a0": -5.7876,
       "a1": 0.0068509,
@@ -288,8 +288,8 @@
       25
     ]
   },
-  "MgSO4·7H2O(s)": {
-    "reaction":"MgSO4·7H2O(s) = Mg+2(aq) + SO4-2(aq) + 7H2O(l)",
+  "MgSO4-7H2O(s)": {
+    "reaction":"MgSO4-7H2O(s) = Mg+2(aq) + SO4-2(aq) + 7H2O(l)",
     "analytic": {
       "a0": 3.956,
       "a1": 0,
@@ -305,7 +305,7 @@
       25
     ]
   },
-  "MgSO4·12H2O(s)": {
+  "MgSO4-12H2O(s)": {
     "reaction":"MgSO4-12H2O(s) = Mg+2(aq) + SO4-2(aq) + 12H2O(l)",
     "analytic": {
       "a0": -29.5818,
@@ -339,7 +339,7 @@
       25
     ]
   },
-  "CaSO4·2H2O(s)": {
+  "CaSO4-2H2O(s)": {
     "reaction":"CaSO4(s) = Ca+2(s) + SO4-2(s) + 2H2O(l)",
     "analytic": {
       "a0": -91.07165,
@@ -356,25 +356,8 @@
       25
     ]
   },
-  "(K,Na)3Na(SO4)2(s)": {
-    "reaction":"",
-    "analytic": {
-      "a0": -62.07986,
-      "a1": 0.1527005,
-      "a2": 0,
-      "a3": 0,
-      "a4": 0,
-      "a5": 0
-    },
-    "eq_num": 0, 
-    "ref": "Liu et al., 2024",
-    "T_range": [
-      -90,
-      25
-    ]
-  },
-  "Na2Mg(SO4)2·4H2O(s)": {
-    "reaction":"Na2Mg(SO4)2·4H2O(s) = 2Na+(aq) + Mg+2(aq) + 2SO4-2(aq) + 4H2O(l)",
+  "Na2Mg(SO4)2-4H2O(s)": {
+    "reaction":"Na2Mg(SO4)2-4H2O(s) = 2Na+(aq) + Mg+2(aq) + 2SO4-2(aq) + 4H2O(l)",
     "analytic": {
       "a0": -7.9121,
       "a1": 0.008220223,
@@ -407,8 +390,8 @@
       25
     ]
   },
-  "K2Mg(SO4)2·6H2O(s)": {
-    "reaction": "K2Mg(SO4)2·6H2O = 2K+(aq) + Mg+2(aq) + 2SO4-2(aq) + 6H2O(l)",
+  "K2Mg(SO4)2-6H2O(s)": {
+    "reaction": "K2Mg(SO4)2-6H2O = 2K+(aq) + Mg+2(aq) + 2SO4-2(aq) + 6H2O(l)",
     "analytic": {
       "a0": -86.61262,
       "a1": 0.470966,
@@ -424,8 +407,8 @@
       25
     ]
   },
-  "LiCl·5H2O(s)": {
-    "reaction": "LiCl·5H2O(s) = Li+(aq) + Cl-(aq) + 5H2O(l)",
+  "LiCl-5H2O(s)": {
+    "reaction": "LiCl-5H2O(s) = Li+(aq) + Cl-(aq) + 5H2O(l)",
     "analytic": {
       "a0": 13.9346,
       "a1": 0,
@@ -441,8 +424,8 @@
       25
     ]
   },
-  "LiCl·3H2O(s)": {
-    "reaction": "LiCl·3H2O(s) = Li+(aq) + Cl-(aq) + 3H2O(l)",
+  "LiCl-3H2O(s)": {
+    "reaction": "LiCl-3H2O(s) = Li+(aq) + Cl-(aq) + 3H2O(l)",
     "analytic": {
       "a0": 11.58593,
       "a1": 0,
@@ -458,8 +441,8 @@
       25
     ]
   },
-  "LiCl·2H2O(s)": {
-    "reaction": "LiCl·2H2O(s) = Li+(aq) + Cl-(aq) + 2H2O(l)",
+  "LiCl-2H2O(s)": {
+    "reaction": "LiCl-2H2O(s) = Li+(aq) + Cl-(aq) + 2H2O(l)",
     "analytic": {
       "a0": 8.482008,
       "a1": 0,
@@ -475,8 +458,8 @@
       25
     ]
   },
-  "LiCl·H2O(s)": {
-    "reaction": "LiCl·H2O(s) = Li+(aq) + Cl-(aq) + H2O(l)",
+  "LiCl-H2O(s)": {
+    "reaction": "LiCl-H2O(s) = Li+(aq) + Cl-(aq) + H2O(l)",
     "analytic": {
       "a0": 410.8374,
       "a1": 0,
