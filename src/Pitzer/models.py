@@ -28,11 +28,12 @@ class FluidPitzer:
         :param equilibrium: str, a chemical expression indicating the solubility equilibrium, e.g., "NaCl(s) = Na+(aq) + Cl-(aq)".
         """
         self.x0 = x0
+        self.t = t
         self.T = t + 273.16
         self.input_species = species
         self.equilibrium = equilibrium
         self.neutral = neutral  # to determine if a neutral species is considered in this fluid.
-        self.solid_disso = db.get_reaction(equilibrium)
+        self.solid_disso = db.get_reaction(equilibrium, self.t)
 
         self._species = None
         self._component_groups = None
@@ -69,39 +70,39 @@ class FluidPitzer:
             if self.component_groups['cation_anion_pairs']:
                 for ca in self.component_groups['cation_anion_pairs']:
                     ca_str = self.order_str(ca)
-                    result[ca_str] = db.get_binary(ca_str)
+                    result[ca_str] = db.get_binary(ca_str, self.t)
             if self.component_groups['cation_pairs']:
                 for cc in self.component_groups['cation_pairs']:
                     cc_str = self.order_str(cc)
-                    result[cc_str] = db.get_binary(cc_str)
+                    result[cc_str] = db.get_binary(cc_str, self.t)
             if self.component_groups['anion_pairs']:
                 for aa in self.component_groups['anion_pairs']:
                     aa_str = self.order_str(aa)
-                    result[aa_str] = db.get_binary(aa_str)
+                    result[aa_str] = db.get_binary(aa_str, self.t)
             if self.component_groups['nc']:
                 for pair in self.component_groups['nc']:
                     pair_str = self.order_str(pair)
-                    result[pair_str] = db.get_binary(pair_str)
+                    result[pair_str] = db.get_binary(pair_str, self.t)
             if self.component_groups['na']:
                 for pair in self.component_groups['na']:
                     pair_str = self.order_str(pair)
-                    result[pair_str] = db.get_binary(pair_str)
+                    result[pair_str] = db.get_binary(pair_str, self.t)
             if self.component_groups['nn']:
                 for pair in self.component_groups['nn']:
                     pair_str = self.order_str(pair)
-                    result[pair_str] = db.get_binary(pair_str)
+                    result[pair_str] = db.get_binary(pair_str, self.t)
             if self.component_groups['nca']:
                 for pair in self.component_groups['nca']:
                     pair_str = self.order_str(pair)
-                    result[pair_str ] = db.get_ternary(pair_str )
+                    result[pair_str ] = db.get_ternary(pair_str, self.t)
             if self.component_groups['cca']:
                 for pair in self.component_groups['cca']:
                     pair_str = self.order_str(pair)
-                    result[pair_str] = db.get_ternary(pair_str)
+                    result[pair_str] = db.get_ternary(pair_str, self.t)
             if self.component_groups['aac']:
                 for pair in self.component_groups['aac']:
                     pair_str = self.order_str(pair)
-                    result[pair_str] = db.get_ternary(pair_str)
+                    result[pair_str] = db.get_ternary(pair_str, self.t)
             self._param_db = result 
         return self._param_db 
 
@@ -789,7 +790,7 @@ class FluidPitzer:
         # gibbs energy of water
         ln_a_w = self.get_water_activity(x)
 
-        water_data = db.get_reaction("H2(g) + 0.5O2(g) = H2O(l)")
+        water_data = db.get_reaction("H2(g) + 0.5O2(g) = H2O(l)", self.t)
         water_parameters = water_data['analytic']
 
         std_cp_water = pm.get_chemical_potential(water_parameters, self.T, water_data['eq_num'])

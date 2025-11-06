@@ -62,22 +62,36 @@ def insert_binary_param(conn, pair, ref, T_range, eq_num,
     conn.commit()
     print(f"Inserted/ignored binary parameter for '{pair}'")
 
+
+
+
+
+
+
 if __name__ == "__main__":
     db_path = current_dir / "pypitzer.sqlite"
     conn = sqlite3.connect(db_path)
 
-
-    insert_binary_param(
-        conn, 
-        pair=("Li+, Cl-"), # test
-        ref="Liu et al., 2024", 
-        T_range=[-90,25], 
-        eq_num=0,
-        b0="0.2185836,-2.51e-04,0,0,9.696362,0,0,0", 
-        b1="-0.583294,2.165e-03,0,0,3.722014,0,0,0", 
-        b2=None, 
-        c_phi="-0.01755,1.64e-05,0,0,3.56052,0,0,0", 
-        lambda_=None, 
-        theta=None
-        )
     
+    data = {
+    ('Li+,LiCl'):"0,0,0,0,0,0,0,0",
+    ('Cl-,LiCl'):"0,0,0,0,0,0,0,0",
+    ('K+,LiCl'): "-2.879993582,-1.996147e-3,0,0,0,0.590495613,0.016767927,0",
+    ('Na+,LiCl'):"-0.112759482,0.0394693e-3,0,0,0,0,0,0",
+}
+
+    for k, v in data.items():
+        insert_binary_param(
+            conn, 
+            pair=k, # test
+            ref="Lassin et al., 2015", 
+            T_range=[25,300], 
+            eq_num=2,
+            b0=None, 
+            b1=None, 
+            b2=None, 
+            c_phi=None, 
+            lambda_=v, 
+            theta=None
+        )
+

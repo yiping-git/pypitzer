@@ -9,84 +9,66 @@ import numpy as np
 import pandas as pd
 import itertools
 
-# from src.database.spencer_revised_chemical_potential import spencer_chemical_potential_db
-# from src.database.marion_chemical_potential import marion_chemical_potential_db
-# from src.database.lassin_chemical_potential import lassin_chemical_potential_db
-# from src.database.solid_data import solids
-from src.database.db_query import PypitzerDB
+
 from src.public.j_x import compute_j_jp
 from src.public.low_level import get_charge_number
-from pathlib import Path
-
-here = Path(__file__).resolve().parent.parent
-
-# db_json_path = here / "database/pypitzer_parameter.json"
-# with open(db_json_path,"r",encoding="utf-8") as f:
-#     parameter_db = json.load(f)
-
-db = PypitzerDB()
-
-def query_str_process(pair):
-    q_str = ",".join(sorted(list(pair)))
-    return q_str
 
 
-# Query methods from json db.
-def binary_query(ion_pair):
-    binary_pair = ",".join(sorted(list(ion_pair)))
-    parameters = db.get_binary(query_str_process(ion_pair))
-    return parameters
+def parameter_fun_spencer(a, T):
+    # eq_num = 0
+    return a[0] + a[1] * T + a[2] * T ** 2 + a[3] * T ** 3 + a[4] / T + a[5] * np.log(T)
 
-def ternary_query(ion_pair):
-    ternary_pair = ",".join(sorted(list(ion_pair)))
-    parameters = db.get_ternary(query_str_process(ternary_pair))
-    return parameters
+def parameter_fun_marion(a, T):
+    # eq_num = 1
+    return  a[0] + a[1] * T + a[2] * T ** 2 + a[3] * T ** 3 + a[4] / T + a[5] * np.log(T) + a[6] / (T ** 2)
 
+def parameter_fun_eq2(a, T):
+    # eq_num = 2
+    return a[1] + a[2] * T + a[3] * T ** 2 + a[4] * T ** 3 + a[5] / T + a[6] * np.log(T) + a[7 ]/ (T - 263) + a[8] / (680 - T)
+    
+def parameter_fun_moller(a, T):
+    # eq_num = 3
+    return a[0] + a[1] * T + a[2] / T + a[3] * np.log(T) + a[4] / (T - 263) + a[5]* T ** 2 + a[6] / (680 - T) + a[7] / (T - 227)
 
-def chemical_potential_lassin(a1, a2, a3, a4, a5, t):
-    log_k = a1 + a2 * t + a3 / t + a4 * np.log10(t) + a5 / (t ** 2)
+def parameter_fun_holmes(a, T):
+    # eq_num = 4
+    Tr = 298.15
+    return a[1] + a[2]*(1/T - 1/Tr) + a[3]*np.log(T/Tr) + a[4]*(T - Tr) + a[5]*(T**2 - Tr**2) + a[6]*np.log(T - 260)
+     
+def parameter_fun_eq5(a, T):
+    # eq_num = 5
+    log_k = a[0] + a[1] * T + a[2] / T + a[3] * np.log10(T) + a[4] / T**2
     return log_k * 2.303
 
 
-def parameter_cal_lassin(a1, a2, a3, a4, a5, a6, a7, a8, t):
-    p = a1 + a2 * t + a3 * t ** 2 + a4 * t ** 3 + a5 / t + a6 * np.log(t) + a7 / (t - 263) + a8 / (680 - t)
-    return p
-
-def parameter_cal_spencer(a1, a2, a3, a4, a5, a6, t):
-    parameter = a1 + a2 * t + a3 * t ** 2 + a4 * t ** 3 + a5 / t + a6 * np.log(t)
-    return parameter
-
-def parameter_fun_spencer(a, T):
-    return a[0] + a[1] * T + a[2] * T ** 2 + a[3] * T ** 3 + a[4] / T + a[5] * np.log(T)
-
-
-def parameter_cal_moller(a1, a2, a3, a4, a5, a6, a7, a8, t):
-    p = a1 + a2 * t + a3 / t + a4 * np.log(t) + a5 / (t - 263) + a6 * t ** 2 + a7 / (680 - t) + a8 / (t - 227)
-    return p
-
-def parameter_cal_holmes(a1, a2, a3, a4, a5, a6, t):
-    t_r = 298.15
-    parameter = a1 + a2 * (1 / t - 1 / t_r) + a3 * np.log(t / t_r) + a4 * (t - t_r) + a5 * (t ** 2 - t_r ** 2) + a6 * np.log(
-        t - 260)
-    return parameter
-
-def parameter_cal_marion(a1, a2, a3, a4, a5, a6, a7, t):
-    # reference: [4]
-    parameter = a1 + a2 * t + a3 * t ** 2 + a4 * t ** 3 + a5 / t + a6 * np.log(t) + a7 / (t ** 2)
-    return parameter
+def get_parameter_pypitzer(a, T, eq_num):
+    if eq_num == 0:
+        return parameter_fun_spencer(a, T)
+    elif eq_num == 1:
+        return parameter_fun_marion(a, T)
+    elif eq_num == 2:
+        return parameter_fun_eq2(a, T)
+    elif eq_num == 3:
+        return parameter_fun_moller(a, T)
+    elif eq_num == 4:
+        return parameter_fun_holmes(a, T)
+    elif eq_num == 5:
+        return parameter_fun_eq5(a, T)
 
 
 
-def a_phi_moller(t):
-    a1 = 3.36901532e-01
-    a2 = -6.32100430e-04
-    a3 = 9.14252359e00
-    a4 = -1.35143986e-02
-    a5 = 2.26089488e-03
-    a6 = 1.92118597e-06
-    a7 = 4.52586464e01
-    a8 = 0
-    return a1 + a2 * t + a3 / t + a4 * np.log(t) + a5 / (t - 263) + a6 * t ** 2 + a7 / (680 - t) + a8 / (t - 227)
+def a_phi_moller(T):
+    a = [
+         3.36901532e-01,
+        -6.32100430e-04,
+         9.142523590e00,
+        -1.35143986e-02,
+         2.26089488e-03,
+         1.92118597e-06,
+         4.525864640e01,
+                      0,
+    ]
+    return parameter_fun_moller(a, T)
 
 
 def a_phi_spencer(T):
@@ -95,14 +77,15 @@ def a_phi_spencer(T):
     :param T: temperature of solution, [K]
     :return: A(φ)
     """
-    a1 = 8.66836498e1
-    a2 = 8.48795942e-2
-    a3 = -8.88785150e-5
-    a4 = 4.88096393e-8
-    a5 = -1.32731477e3
-    a6 = -1.76460172e1
-    a_phi = parameter_cal_spencer(a1, a2, a3, a4, a5, a6, T)
-    return a_phi
+    a = [
+            8.66836498e1,
+            8.48795942e-2,
+           -8.88785150e-5,
+            4.88096393e-8,
+           -1.32731477e3,
+           -1.76460172e1
+        ]
+    return parameter_fun_spencer(a, T)
 
 
 def g_func(a):
@@ -356,15 +339,8 @@ def group_components(components):
 
 
 
-def get_parameter_pypitzer(parameters, T, eq_num):
-    if eq_num == 0:
-        return parameter_fun_spencer(parameters, T)
-    return parameter_fun_spencer(parameters, T)
-
 
 def ternary_parameter_cal(T, parameters):
-    # parameters = db.get_ternary(query_str_process(pair))
-
     para_psi  = parameters['psi']
     para_zeta = parameters['zeta'] if 'zeta' in parameters else None
     eq_num = parameters['eq_num']
@@ -375,8 +351,6 @@ def ternary_parameter_cal(T, parameters):
 
 
 def get_beta_012(ion_pair, T, parameters):
-    # parameters = db.get_binary(query_str_process(ion_pair))
-
     para_b0 = parameters['b0']
     para_b1 = parameters['b1']
     para_b2 = parameters['b2'] if "b2" in parameters else None
@@ -405,7 +379,6 @@ def beta_prime_calculate(ion_pair, ionic_strength, T, parameters):
     return b_prime
 
 def c_calculate(ion_pair, T, parameters):
-    # parameters = db.get_binary(query_str_process(ion_pair))
     para_cphi = parameters['c_phi']
 
     eq_num = parameters['eq_num']
@@ -434,8 +407,6 @@ def zeta_cal(pair,T, parameters):
 def cc_phi_calculate(ion_pair, a_phi, ionic_strength, T, parameters):
     z1 = get_charge_number(ion_pair[0])
     z2 = get_charge_number(ion_pair[1])
-
-    # parameters = db.get_binary(query_str_process(ion_pair))
 
     para_theta = parameters['theta']
     eq_num = parameters['eq_num']
@@ -491,12 +462,6 @@ def aa_phi_calculate(ion_pair, a_phi, ionic_strength, T, parameters):
  DATA OF SOLID PHASE
 ***************************
 """
-current_dir = Path(__file__).parent
-json_file = here / "database/pypitzer_reaction.json"
-
-with open(json_file, "r", encoding="utf-8") as f:
-    reaction_database = json.load(f)
-
 
 def clean_state_marks(text: str) -> str:
     """Remove state marks like (aq), (s), (l), (g)."""
@@ -556,26 +521,26 @@ def get_solid_stoichiometry(reaction_data):
     return stoich
 
 
-class Reaction:
-    def __init__(self, reaction_key):
-        self.reaction_key = reaction_key
+# class Reaction:
+#     def __init__(self, reaction_key):
+#         self.reaction_key = reaction_key
 
-    def reaction_data(self):
-        if self.reaction_key not in reaction_database:
-            raise ValueError(f"{self.reaction_key} not found in reactions dictionary")
-        return reaction_database[self.reaction_key]
+#     def reaction_data(self):
+#         if self.reaction_key not in reaction_database:
+#             raise ValueError(f"{self.reaction_key} not found in reactions dictionary")
+#         return reaction_database[self.reaction_key]
 
-    @property
-    def stoich(self):
-        return get_solid_stoichiometry(self.reaction_data())
+#     @property
+#     def stoich(self):
+#         return get_solid_stoichiometry(self.reaction_data())
     
-    @property
-    def analytic(self):
-        return self.reaction_data()['analytic']
+#     @property
+#     def analytic(self):
+#         return self.reaction_data()['analytic']
     
-    @property
-    def eq_num(self):
-        return self.reaction_data()['eq_num']
+#     @property
+#     def eq_num(self):
+#         return self.reaction_data()['eq_num']
 
 
 

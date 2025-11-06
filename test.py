@@ -1,11 +1,10 @@
 from src.Pitzer.models import FluidPitzer
-from src.Pitzer.methods import binary_query
-import pprint
+
 
 species = {
     'Na+': 1, # always be 1 if Na is the internal standard
     'K+': 2 ,  # K/Na = 2
-    # 'Mg+2':0
+    # 'Mg+2':0.1
 }
 
 # create a fluid object with information from microthemometric and LA-ICP-MS data
@@ -24,7 +23,6 @@ fluid = FluidPitzer(
 )
 
 result = fluid.optimize()
-# result = fluid.get_b((1,1))
 
 print(result)
 

@@ -58,6 +58,9 @@ def get_solid_stoichiometry(reaction_str):
         return stoich
     return None
 
+class NoDataError(Exception):
+    """Raised when a database query returns no results for the given temperature or key."""
+    pass
 
 class PypitzerDB:
     def __init__(self, db_path=None):
@@ -80,27 +83,40 @@ class PypitzerDB:
             return []
         return [float(x) for x in s.split(",")]
 
-    def get_binary(self, pair: str):
-        
+    def get_binary(self, pair: str, T: float):
         pair = self.preprocess_pair(pair)
         cur = self.conn.cursor()
-        cur.execute("SELECT * FROM binary_params WHERE pair = ?", (pair,))
+        cur.execute("""
+            SELECT *
+            FROM binary_params
+            WHERE pair = ?
+            AND T_min < ?
+            AND T_max >= ?
+        """, (pair, T, T))
         row = cur.fetchone()
         if not row:
-            return {}
+            raise NoDataError(f"No data found for pair {pair} at T={T} °C")
+
         row_dict = dict(row)
         for key in ["b0", "b1", "b2", "c_phi", "lambda", "theta"]:
             row_dict[key] = self.str_to_floats(row_dict.get(key))
         return row_dict
 
-    def get_ternary(self, triplet: str):
-        print("times called")
+
+    def get_ternary(self, triplet: str, T: float):
         triplet = self.preprocess_pair(triplet)
         cur = self.conn.cursor()
-        cur.execute("SELECT * FROM ternary_params WHERE triplet = ?", (triplet,))
+        cur.execute("""
+            SELECT *
+            FROM ternary_params
+            WHERE triplet = ?
+            AND T_min < ?
+            AND T_max >= ?
+        """, (triplet, T, T))
         row = cur.fetchone()
         if not row:
-            return {}
+            raise NoDataError(f"No data found for triplet {triplet} at T={T} °C")
+
         row_dict = dict(row)
         for key in ["psi", "zeta"]:
             row_dict[key] = self.str_to_floats(row_dict.get(key))
@@ -122,18 +138,23 @@ class PypitzerDB:
         """Compute SHA256 hash of canonical reaction string."""
         return hashlib.sha256(reaction.encode()).hexdigest()
 
-    def get_reaction(self, reaction: str):
-        """Query a chemical reaction from the database by reaction string."""
+    def get_reaction(self, reaction: str, T: float):
         reaction_canon = self.preprocess_reaction(reaction)
         r_hash = self.reaction_hash(reaction_canon)
         cur = self.conn.cursor()
-        cur.execute("SELECT * FROM reaction WHERE reaction_id = ?", (r_hash,))
+        cur.execute("""
+            SELECT *
+            FROM reaction
+            WHERE reaction_id = ?
+            AND T_min < ?
+            AND T_max >= ?
+        """, (r_hash, T, T))
         row = cur.fetchone()
         if not row:
-            return {}
+            raise NoDataError(f"No reaction data found for {reaction} at T={T} °C")
+
         row_dict = dict(row)
-        # Convert analytic string to floats
-        row_dict["analytic"] = self.str_to_floats(row_dict.get("analytic"))
+        row_dict["analytic"] = self.str_to_floats(row_dict.get("analytic")) # type: ignore
         row_dict["stoich"] = get_solid_stoichiometry(row_dict.get("reaction"))
         return row_dict
 
@@ -147,7 +168,7 @@ if __name__ == "__main__":
 
     # binary = db.get_binary("Na+,Cl-")
     # ternary = db.get_ternary("Na+,Cl-,K+")
-    reaction = db.get_reaction("NaCl-2H2O(s) = Na+(aq) + Cl-(aq) + 2H2O(l)")
+    reaction = db.get_reaction("NaCl-2H2O(s) = Na+(aq) + Cl-(aq) + 2H2O(l)", 25)
 
     # print("Binary:", binary)
     # print("Ternary:", ternary)

@@ -40,31 +40,32 @@ conda install pypitzer
 After installation. Here is an example:
 
 ```python
-# import the FluidPitzer class
-from Pitzer.models import FluidPitzer
+from src.Pitzer.models import FluidPitzer
+from src.Pitzer.methods import binary_query
 
-# aqueous species determined in LA-ICP-MS analysis
 species = {
     'Na+': 1, # always be 1 if Na is the internal standard
-    'K+': 2,  # K/Na = 2
+    'K+': 2 ,  # K/Na = 2
+    # 'Mg+2':0
 }
 
 # create a fluid object with information from microthemometric and LA-ICP-MS data
 fluid = FluidPitzer(
     # the initial guess
-    x0=(3, 3),
+    x0=(1,1),
   
     # species defined before
     species=species,
   
-    # the last melting solid
-    solids=['KCl'],
+    # the equilibirum of the last melting solid phase
+    equilibrium='KCl(s) = K+(aq) + Cl-(aq)', 
   
-    # melting temperature of the last solid, °C
+    # melting temperature of the last-melting solid phase, [°C]
     t = 25,
 )
 
 result = fluid.optimize()
+# result = fluid.get_b((1,1))
 
 print(result)
 ```
@@ -78,4 +79,5 @@ the output will be:
 in molality.
 
 ## Cite this package
+
 Liu, Y., Wagner, T., & Fußwinkel, T. (2024). An integrated approach for quantifying fluid inclusion data combining microthermometry, LA-ICP-MS, and thermodynamic modeling. Chemical Geology, 644, 121863.
