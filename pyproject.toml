@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "pypitzer"
-version = "1.0.2"
+version = "1.1.5"
 authors = [
   { name = "Yiping Liu", email = "yiping.liu@rwth-aachen.de" },
 ]
@@ -18,9 +18,6 @@ classifiers = [
     "Operating System :: OS Independent",
 ]
 keywords = ["thermodynamics", "pitzer", "geochemistry", "fluid-inclusions"]
-
-[tool.hatch.build.targets.wheel]
-packages = ["pypitzer"]
 
 [project.urls]
 Homepage = "https://github.com/pypitzer/pypitzer"

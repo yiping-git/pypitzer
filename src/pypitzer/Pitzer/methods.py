@@ -3,10 +3,8 @@
 # Description: This script calculates the average of a list of numbers.
 # Version: 1.0
 # Last Modified: Nov 11, 2025
-import json
 import re
 import numpy as np
-import pandas as pd
 import itertools
 
 from pypitzer.public.j_x import compute_j_jp
