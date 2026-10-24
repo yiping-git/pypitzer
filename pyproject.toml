@@ -1,24 +1,39 @@
 [build-system]
-requires = ["hatchling>=1.17.0"]
+requires = ["hatchling>=1.27"]
 build-backend = "hatchling.build"
 
 [project]
 name = "pypitzer"
-version = "1.1.5"
-authors = [
-  { name = "Yiping Liu", email = "yiping.liu@rwth-aachen.de" },
-]
-description = "A library for thermodynamic modeling with the Pitzer model and its application in quantification of fluid inclusion data."
+version = "2.0.0"
+description = "Pitzer activity properties and internal-standard fluid-inclusion quantification"
 readme = "README.md"
-requires-python = ">=3.7"
+requires-python = ">=3.10"
 license = { text = "MIT" }
-classifiers = [
-    "Programming Language :: Python :: 3",
-    "License :: OSI Approved :: MIT License",
-    "Operating System :: OS Independent",
-]
+authors = [{ name = "Yiping Liu", email = "yiping.liu@rwth-aachen.de" }]
+dependencies = ["numpy>=1.24", "scipy>=1.10"]
 keywords = ["thermodynamics", "pitzer", "geochemistry", "fluid-inclusions"]
+classifiers = [
+  "Development Status :: 5 - Production/Stable",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Topic :: Scientific/Engineering :: Chemistry",
+]
 
 [project.urls]
-Homepage = "https://github.com/pypitzer/pypitzer"
-"Bug Tracker" = "https://github.com/pypitzer/pypitzer/issues"
+Homepage = "https://github.com/yiping-git/pypitzer"
+Issues = "https://github.com/yiping-git/pypitzer/issues"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/pypitzer"]
+
+[tool.pytest.ini_options]
+addopts = "-ra"
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
