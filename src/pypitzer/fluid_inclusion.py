@@ -142,7 +142,6 @@ class ConvergenceError(RuntimeError):
 @dataclass(frozen=True)
 class LastMeltingPhase:
     phase_id: str
-    display_name: str
     formula: str
     temperature_min_c: float
     temperature_max_c: float
@@ -153,7 +152,6 @@ def supported_last_melting_phases() -> tuple[LastMeltingPhase, ...]:
     return tuple(
         LastMeltingPhase(
             phase_id=record.phase_id,
-            display_name=record.display_name,
             formula=record.formula,
             temperature_min_c=record.temperature_min_k - PUBLISHED_CELSIUS_OFFSET,
             temperature_max_c=record.temperature_max_k - PUBLISHED_CELSIUS_OFFSET,

@@ -61,22 +61,24 @@ PySILLS can populate its phase selector directly from the discovery API:
 from pypitzer import supported_last_melting_phases
 
 for phase in supported_last_melting_phases():
-    print(phase.phase_id, phase.display_name)
+    print(phase.phase_id, phase.formula)
 ```
 
 Only the stable `phase_id` is passed back to `FluidInclusionProblem`; chemical
-reactions remain private implementation details.
+reactions remain private implementation details. Use `formula` as the label in
+the PySILLS interface; `phase_id` remains distinct where one formula has
+multiple polymorphs.
 
 ### Supported last-melting phases
 
-| Phase ID | Display name | Valid °C |
+| Phase ID | Formula | Valid °C |
 |---|---|---:|
 | `2KCl-FeCl2-2H2O` | 2KCl-FeCl2-2H2O | -90 to 25 |
-| `aragonite` | Aragonite (CaCO3) | -90 to 25 |
+| `aragonite` | CaCO3 | -90 to 25 |
 | `CaCl2-2MgCl2-12H2O` | CaCl2-2MgCl2-12H2O | -90 to 25 |
 | `CaCl2-6H2O` | CaCl2-6H2O | -90 to 25 |
 | `CaCO3-6H2O` | CaCO3-6H2O | -90 to 25 |
-| `calcite` | Calcite (CaCO3) | -90 to 25 |
+| `calcite` | CaCO3 | -90 to 25 |
 | `CaMg(CO3)2` | CaMg(CO3)2 | -90 to 25 |
 | `CaSO4` | CaSO4 | -90 to 25 |
 | `FeCl2-4H2O` | FeCl2-4H2O | -90 to 25 |
@@ -84,10 +86,10 @@ reactions remain private implementation details.
 | `FeCO3` | FeCO3 | -90 to 25 |
 | `FeSO4-7H2O` | FeSO4-7H2O | -90 to 25 |
 | `FeSO4-H2O` | FeSO4-H2O | -90 to 25 |
-| `H2O` | Ice (H2O) | -90 to 25 |
+| `H2O` | H2O | -90 to 25 |
 | `K2Mg(SO4)2-6H2O` | K2Mg(SO4)2-6H2O | -90 to 25 |
 | `K2SO4` | K2SO4 | -90 to 25 |
-| `KCl` | Sylvite (KCl) | -90 to 300 |
+| `KCl` | KCl | -90 to 300 |
 | `KCl-MgCl2-6H2O` | KCl-MgCl2-6H2O | -90 to 25 |
 | `KHCO3` | KHCO3 | -90 to 25 |
 | `LiCl` | LiCl | -90 to 25 |
@@ -113,10 +115,10 @@ reactions remain private implementation details.
 | `Na2Mg(SO4)2-4H2O` | Na2Mg(SO4)2-4H2O | -90 to 25 |
 | `Na2SO4` | Na2SO4 | -90 to 25 |
 | `Na2SO4-10H2O` | Na2SO4-10H2O | -90 to 25 |
-| `NaCl` | Halite (NaCl) | -90 to 300 |
-| `NaCl-2H2O` | Hydrohalite (NaCl·2H2O) | -90 to 25 |
+| `NaCl` | NaCl | -90 to 300 |
+| `NaCl-2H2O` | NaCl-2H2O | -90 to 25 |
 | `NaHCO3` | NaHCO3 | -90 to 25 |
-| `vaterite` | Vaterite (CaCO3) | -90 to 25 |
+| `vaterite` | CaCO3 | -90 to 25 |
 
 The solver imposes both electroneutrality and the last-melting-phase
 equilibrium. Failure raises `ConvergenceError`; passing `raise_on_failure=False`

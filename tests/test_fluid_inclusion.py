@@ -78,7 +78,8 @@ def test_element_ratios_are_converted_to_species_constraints():
 def test_supported_phases_are_discoverable_for_pysills():
     phases = {phase.phase_id: phase for phase in supported_last_melting_phases()}
     assert len(phases) == 46
-    assert phases["KCl"].display_name == "Sylvite (KCl)"
+    assert phases["KCl"].formula == "KCl"
+    assert phases["calcite"].formula == "CaCO3"
     assert phases["KCl"].temperature_min_c == pytest.approx(-90.0)
     assert phases["KCl"].temperature_max_c == pytest.approx(300.0)
     assert {"calcite", "aragonite", "vaterite"} <= phases.keys()

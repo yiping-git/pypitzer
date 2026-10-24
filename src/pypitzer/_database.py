@@ -44,7 +44,6 @@ class Reaction:
 @dataclass(frozen=True)
 class PhaseRecord:
     phase_id: str
-    display_name: str
     formula: str
     temperature_min_k: float
     temperature_max_k: float
@@ -62,17 +61,6 @@ _PHASE_ALIASES = {
     "sylvite": "KCl",
     "hydrohalite": "NaCl-2H2O",
 }
-
-_PHASE_DISPLAY_NAMES = {
-    "H2O": "Ice (H2O)",
-    "KCl": "Sylvite (KCl)",
-    "NaCl": "Halite (NaCl)",
-    "NaCl-2H2O": "Hydrohalite (NaCl·2H2O)",
-    "calcite": "Calcite (CaCO3)",
-    "aragonite": "Aragonite (CaCO3)",
-    "vaterite": "Vaterite (CaCO3)",
-}
-
 
 def charge_of(formula: str) -> int:
     """Return the charge from geochemical labels such as ``Mg+2`` or ``Cl-``."""
@@ -207,7 +195,6 @@ class ParameterRepository:
         return tuple(
             PhaseRecord(
                 phase_id=phase_id,
-                display_name=_PHASE_DISPLAY_NAMES.get(phase_id, str(data["formula"])),
                 formula=str(data["formula"]),
                 temperature_min_k=float(data["minimum"]),
                 temperature_max_k=float(data["maximum"]),
