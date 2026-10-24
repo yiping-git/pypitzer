@@ -80,6 +80,8 @@ def test_supported_phases_are_discoverable_for_pysills():
     assert len(phases) == 46
     assert phases["KCl"].formula == "KCl"
     assert phases["calcite"].formula == "CaCO3"
+    assert phases["NaCl-2H2O"].formula == "NaCl·2H2O"
+    assert phases["KCl-MgCl2-6H2O"].formula == "KCl·MgCl2·6H2O"
     assert phases["KCl"].temperature_min_c == pytest.approx(-90.0)
     assert phases["KCl"].temperature_max_c == pytest.approx(300.0)
     assert {"calcite", "aragonite", "vaterite"} <= phases.keys()

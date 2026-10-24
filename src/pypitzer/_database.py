@@ -195,7 +195,7 @@ class ParameterRepository:
         return tuple(
             PhaseRecord(
                 phase_id=phase_id,
-                formula=str(data["formula"]),
+                formula=str(data["formula"]).replace("-", "·"),
                 temperature_min_k=float(data["minimum"]),
                 temperature_max_k=float(data["maximum"]),
             )
