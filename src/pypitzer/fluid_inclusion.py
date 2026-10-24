@@ -42,11 +42,11 @@ DEFAULT_ELEMENT_SPECIES = MappingProxyType(
 class FluidInclusionProblem:
     """Inputs for a two-constraint internal-standard calculation.
 
-    ``ratios`` are aqueous-species/internal-standard molar ratios.  The
-    standard itself may be omitted; its ratio is always one.
+    ``ratios_to_internal_standard`` are aqueous-species/internal-standard
+    molar ratios. The standard itself is omitted; its ratio is always one.
     """
 
-    ratios: Mapping[str, float]
+    ratios_to_internal_standard: Mapping[str, float]
     last_melting_phase: str
     temperature_c: float
     internal_standard: str = "Na+"
@@ -62,21 +62,28 @@ class FluidInclusionProblem:
             raise ValueError("balancing_ion must differ from internal_standard")
         if len(self.initial_molalities) != 2 or any(value <= 0.0 for value in self.initial_molalities):
             raise ValueError("initial_molalities must contain two positive values")
-        normalized = {strip_state(name): float(value) for name, value in self.ratios.items()}
-        if len(normalized) != len(self.ratios):
-            raise ValueError("ratios contain duplicate species after removing state labels")
+        normalized = {
+            strip_state(name): float(value)
+            for name, value in self.ratios_to_internal_standard.items()
+        }
+        if len(normalized) != len(self.ratios_to_internal_standard):
+            raise ValueError(
+                "ratios_to_internal_standard contains duplicate species after removing state labels"
+            )
         if any(value < 0.0 for value in normalized.values()):
-            raise ValueError("ratios must be non-negative")
+            raise ValueError("ratios_to_internal_standard must be non-negative")
         supplied_standard = normalized.get(strip_state(self.internal_standard), 1.0)
         if not math.isclose(float(supplied_standard), 1.0, rel_tol=0.0, abs_tol=1e-12):
             raise ValueError("the internal-standard ratio must be 1")
         if strip_state(self.balancing_ion) in normalized:
-            raise ValueError("balancing_ion is solved and must not appear in ratios")
+            raise ValueError(
+                "balancing_ion is solved and must not appear in ratios_to_internal_standard"
+            )
 
     @classmethod
     def from_element_ratios(
         cls,
-        element_ratios: Mapping[str, float],
+        element_ratios_to_internal_standard: Mapping[str, float],
         last_melting_phase: str,
         temperature_c: float,
         *,
@@ -93,14 +100,17 @@ class FluidInclusionProblem:
         mapping = dict(DEFAULT_ELEMENT_SPECIES)
         if species_by_element:
             mapping.update(species_by_element)
-        unknown = sorted(set(element_ratios) - mapping.keys())
+        unknown = sorted(set(element_ratios_to_internal_standard) - mapping.keys())
         if internal_standard_element not in mapping:
             unknown.append(internal_standard_element)
         if unknown:
             raise ValueError(f"No aqueous-species mapping for element(s): {', '.join(sorted(set(unknown)))}")
-        ratios = {mapping[element]: float(value) for element, value in element_ratios.items()}
+        ratios = {
+            mapping[element]: float(value)
+            for element, value in element_ratios_to_internal_standard.items()
+        }
         return cls(
-            ratios=ratios,
+            ratios_to_internal_standard=ratios,
             last_melting_phase=last_melting_phase,
             temperature_c=temperature_c,
             internal_standard=mapping[internal_standard_element],
@@ -168,7 +178,11 @@ class FluidInclusionSolver:
     @staticmethod
     def _molalities(problem: FluidInclusionProblem, values: np.ndarray) -> dict[str, float]:
         standard_m, balancing_m = np.exp(values)
-        result = {strip_state(name): float(ratio) * float(standard_m) for name, ratio in problem.ratios.items() if strip_state(name) != strip_state(problem.internal_standard)}
+        result = {
+            strip_state(name): float(ratio) * float(standard_m)
+            for name, ratio in problem.ratios_to_internal_standard.items()
+            if strip_state(name) != strip_state(problem.internal_standard)
+        }
         result[strip_state(problem.internal_standard)] = float(standard_m)
         result[strip_state(problem.balancing_ion)] = float(balancing_m)
         return result
@@ -193,7 +207,10 @@ class FluidInclusionSolver:
                 ln_q += coefficient * math.log(properties.water_activity)
                 continue
             if formula not in properties.molalities:
-                raise ValueError(f"Reaction species {formula!r} is not constrained by the supplied ratios")
+                raise ValueError(
+                    f"Reaction species {formula!r} is not constrained by "
+                    "ratios_to_internal_standard"
+                )
             molality = properties.molalities[formula]
             if molality <= 0.0:
                 raise ValueError(f"Reaction species {formula!r} has zero activity")

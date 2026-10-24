@@ -28,7 +28,7 @@ def test_public_api_is_fluid_inclusion_only():
 def test_published_k_na_kcl_example():
     result = solve_fluid_inclusion(
         FluidInclusionProblem(
-            ratios={"K+": 2.0},
+            ratios_to_internal_standard={"K+": 2.0},
             last_melting_phase="KCl",
             temperature_c=25.0,
         )
@@ -45,7 +45,7 @@ def test_published_k_na_kcl_example():
 def test_standard_ratio_must_be_one():
     with pytest.raises(ValueError, match="standard ratio"):
         FluidInclusionProblem(
-            ratios={"Na+": 2.0, "K+": 1.0},
+            ratios_to_internal_standard={"Na+": 2.0, "K+": 1.0},
             last_melting_phase="KCl",
             temperature_c=25.0,
         )
@@ -54,7 +54,7 @@ def test_standard_ratio_must_be_one():
 def test_ice_last_melting_constraint():
     result = solve_fluid_inclusion(
         FluidInclusionProblem(
-            ratios={},
+            ratios_to_internal_standard={},
             last_melting_phase="ice",
             temperature_c=-10.0,
         )
@@ -67,12 +67,25 @@ def test_ice_last_melting_constraint():
 
 def test_element_ratios_are_converted_to_species_constraints():
     problem = FluidInclusionProblem.from_element_ratios(
-        {"K": 2.0},
+        element_ratios_to_internal_standard={"K": 2.0},
         last_melting_phase="sylvite",
         temperature_c=25.0,
     )
-    assert problem.ratios == {"K+": 2.0}
+    assert problem.ratios_to_internal_standard == {"K+": 2.0}
     assert problem.internal_standard == "Na+"
+
+
+def test_non_na_internal_standard():
+    result = solve_fluid_inclusion(
+        FluidInclusionProblem(
+            ratios_to_internal_standard={"Na+": 0.5},
+            internal_standard="K+",
+            last_melting_phase="KCl",
+            temperature_c=25.0,
+        )
+    )
+    assert result.diagnostics.converged
+    assert result.molalities["Na+"] / result.molalities["K+"] == pytest.approx(0.5)
 
 
 def test_supported_phases_are_discoverable_for_pysills():
@@ -91,7 +104,7 @@ def test_unknown_phase_has_clear_error():
     with pytest.raises(Exception, match="Unknown last-melting phase"):
         solve_fluid_inclusion(
             FluidInclusionProblem(
-                ratios={"K+": 2.0},
+                ratios_to_internal_standard={"K+": 2.0},
                 last_melting_phase="not-a-phase",
                 temperature_c=25.0,
             )

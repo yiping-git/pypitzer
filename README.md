@@ -17,15 +17,16 @@ python -m pip install pypitzer
 
 ## Fluid-inclusion calculation
 
-Ratios are molar aqueous-species/internal-standard ratios. Na is the default
-internal standard and chloride is solved together with the absolute Na
-molality.
+`ratios_to_internal_standard` contains molar aqueous-species/internal-standard
+ratios. `Na+` is the default internal standard, but another charged species may
+be selected. The standard itself is omitted because its ratio is implicitly
+one. Chloride is the default balancing ion.
 
 ```python
 from pypitzer import FluidInclusionProblem, solve_fluid_inclusion
 
 problem = FluidInclusionProblem(
-    ratios={"K+": 2.0},
+    ratios_to_internal_standard={"K+": 2.0},  # K/Na = 2
     last_melting_phase="KCl",
     temperature_c=25.0,
     initial_molalities=(1.0, 1.0),
@@ -45,7 +46,7 @@ PySILLS-style elemental ratios can be converted with the typed constructor:
 
 ```python
 problem = FluidInclusionProblem.from_element_ratios(
-    {"K": 2.0},
+    element_ratios_to_internal_standard={"K": 2.0},  # K/Na = 2
     last_melting_phase="KCl",
     temperature_c=25.0,
 )
