@@ -24,11 +24,8 @@ def test_database_connection_is_read_only():
             connection.execute("DELETE FROM binary_params")
 
 
-def test_reaction_lookup_is_order_independent_within_each_side():
-    reaction = ParameterRepository().reaction(
-        "KCl(s) = K+(aq) + Cl-(aq)",
-        298.15,
-    )
+def test_phase_lookup_resolves_internal_reaction():
+    reaction = ParameterRepository().phase_reaction("sylvite", 298.15)
     assert reaction.equation == "KCl(s) = Cl-(aq) + K+(aq)"
     assert reaction.stoichiometry["KCl(s)"] == -1.0
     assert reaction.stoichiometry["K+(aq)"] == 1.0

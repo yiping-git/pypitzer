@@ -47,15 +47,15 @@ class FluidInclusionProblem:
     """
 
     ratios: Mapping[str, float]
-    equilibrium: str
+    last_melting_phase: str
     temperature_c: float
     internal_standard: str = "Na+"
     balancing_ion: str = "Cl-"
     initial_molalities: tuple[float, float] = (1.0, 1.0)
 
     def __post_init__(self) -> None:
-        if not self.equilibrium.strip():
-            raise ValueError("equilibrium must not be empty")
+        if not self.last_melting_phase.strip():
+            raise ValueError("last_melting_phase must not be empty")
         if charge_of(self.internal_standard) == 0 or charge_of(self.balancing_ion) == 0:
             raise ValueError("internal_standard and balancing_ion must be charged aqueous species")
         if self.internal_standard == self.balancing_ion:
@@ -77,7 +77,7 @@ class FluidInclusionProblem:
     def from_element_ratios(
         cls,
         element_ratios: Mapping[str, float],
-        equilibrium: str,
+        last_melting_phase: str,
         temperature_c: float,
         *,
         internal_standard_element: str = "Na",
@@ -101,7 +101,7 @@ class FluidInclusionProblem:
         ratios = {mapping[element]: float(value) for element, value in element_ratios.items()}
         return cls(
             ratios=ratios,
-            equilibrium=equilibrium,
+            last_melting_phase=last_melting_phase,
             temperature_c=temperature_c,
             internal_standard=mapping[internal_standard_element],
             balancing_ion=balancing_ion,
@@ -123,7 +123,7 @@ class SolverDiagnostics:
 @dataclass(frozen=True)
 class FluidInclusionResult:
     molalities: Mapping[str, float]
-    equilibrium: str
+    last_melting_phase: str
     temperature_c: float
     diagnostics: SolverDiagnostics
 
@@ -137,6 +137,29 @@ class ConvergenceError(RuntimeError):
     def __init__(self, message: str, result: FluidInclusionResult | None = None):
         super().__init__(message)
         self.result = result
+
+
+@dataclass(frozen=True)
+class LastMeltingPhase:
+    phase_id: str
+    display_name: str
+    formula: str
+    temperature_min_c: float
+    temperature_max_c: float
+
+
+def supported_last_melting_phases() -> tuple[LastMeltingPhase, ...]:
+    """Return phase choices suitable for a PySILLS dropdown."""
+    return tuple(
+        LastMeltingPhase(
+            phase_id=record.phase_id,
+            display_name=record.display_name,
+            formula=record.formula,
+            temperature_min_c=record.temperature_min_k - PUBLISHED_CELSIUS_OFFSET,
+            temperature_max_c=record.temperature_max_k - PUBLISHED_CELSIUS_OFFSET,
+        )
+        for record in ParameterRepository().phases()
+    )
 
 
 class FluidInclusionSolver:
@@ -181,7 +204,9 @@ class FluidInclusionSolver:
 
     def solve(self, problem: FluidInclusionProblem, *, raise_on_failure: bool = True, tolerance: float = 1e-9, max_evaluations: int = 300) -> FluidInclusionResult:
         temperature_k = float(problem.temperature_c) + PUBLISHED_CELSIUS_OFFSET
-        reaction = self._repository.reaction(problem.equilibrium, temperature_k)
+        reaction = self._repository.phase_reaction(
+            problem.last_melting_phase, temperature_k
+        )
 
         def residual(log_values: np.ndarray) -> np.ndarray:
             molalities = self._molalities(problem, log_values)
@@ -211,7 +236,7 @@ class FluidInclusionSolver:
         )
         result = FluidInclusionResult(
             MappingProxyType(molalities),
-            problem.equilibrium,
+            problem.last_melting_phase,
             float(problem.temperature_c),
             diagnostics,
         )
