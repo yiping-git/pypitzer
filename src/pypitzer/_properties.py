@@ -1,4 +1,4 @@
-"""Formula-keyed public facade for direct Pitzer property calculations."""
+"""Private formula-keyed facade used by the fluid-inclusion solver."""
 
 from __future__ import annotations
 
@@ -6,8 +6,8 @@ from dataclasses import dataclass
 from types import MappingProxyType
 from typing import Mapping
 
-from .core import PitzerProperties
-from .database import ParameterRepository
+from ._core import PitzerProperties
+from ._database import ParameterRepository
 
 
 @dataclass(frozen=True)

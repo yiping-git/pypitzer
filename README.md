@@ -2,8 +2,8 @@
 
 PyPitzer is a focused thermodynamic package for quantifying fluid-inclusion
 compositions from microthermometry and LA-ICP-MS internal-standard ratios. It
-provides a Pitzer property calculator, a bundled read-only parameter database,
-and a constrained fluid-inclusion solver.
+provides a constrained fluid-inclusion solver backed by a private Pitzer
+runtime and a bundled read-only parameter database.
 
 Version 2 is a clean, incompatible redesign of the published version 1 package.
 The original implementation remains available from the `v1-legacy` tag and
@@ -39,7 +39,7 @@ print(result.diagnostics)
 This published regression gives approximately 1.84526 mol/kg Na,
 3.69052 mol/kg K, and 5.53578 mol/kg Cl. Fluid-inclusion temperatures retain
 the published implementation's 273.16 Celsius-to-Kelvin offset for exact
-reproducibility; direct property calculations accept Kelvin explicitly.
+reproducibility.
 
 PySILLS-style elemental ratios can be converted with the typed constructor:
 
@@ -59,22 +59,10 @@ The solver imposes both electroneutrality and the last-melting-phase
 equilibrium. Failure raises `ConvergenceError`; passing `raise_on_failure=False`
 returns the result with full diagnostics instead.
 
-## Direct property calculation
-
-```python
-from pypitzer import PropertyCalculator
-
-properties = PropertyCalculator().calculate(
-    {"Na+": 1.0, "Cl-": 1.0},
-    temperature_k=298.15,
-)
-print(properties.water_activity)
-print(properties.activity_coefficient("Na+"))
-```
-
-The SQLite database is bundled as a versioned package resource and is always
-opened using SQLite read-only and query-only modes. Database generation and
-editing tools are intentionally not part of the public package.
+The property engine and SQLite repository are private implementation details;
+PyPitzer does not expose a general-purpose Pitzer property API. The database is
+always opened using SQLite read-only and query-only modes. Database generation
+and editing tools are intentionally not part of the package.
 
 ## Citation
 

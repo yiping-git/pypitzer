@@ -11,8 +11,8 @@ from typing import Mapping
 import numpy as np
 from scipy.optimize import least_squares
 
-from .database import ParameterRepository, Reaction, charge_of, strip_state
-from .properties import PropertyCalculator, SolutionProperties
+from ._database import ParameterRepository, Reaction, charge_of, strip_state
+from ._properties import PropertyCalculator, SolutionProperties
 
 # The published implementation and the curated database use 273.16 for the
 # Celsius-to-Kelvin conversion. Retaining that convention is required for
@@ -123,8 +123,8 @@ class SolverDiagnostics:
 @dataclass(frozen=True)
 class FluidInclusionResult:
     molalities: Mapping[str, float]
-    properties: SolutionProperties
-    reaction: Reaction
+    equilibrium: str
+    temperature_c: float
     diagnostics: SolverDiagnostics
 
     def require_converged(self) -> "FluidInclusionResult":
@@ -140,9 +140,9 @@ class ConvergenceError(RuntimeError):
 
 
 class FluidInclusionSolver:
-    def __init__(self, repository: ParameterRepository | None = None):
-        self.repository = repository or ParameterRepository()
-        self.calculator = PropertyCalculator(self.repository)
+    def __init__(self) -> None:
+        self._repository = ParameterRepository()
+        self._calculator = PropertyCalculator(self._repository)
 
     @staticmethod
     def _molalities(problem: FluidInclusionProblem, values: np.ndarray) -> dict[str, float]:
@@ -181,11 +181,11 @@ class FluidInclusionSolver:
 
     def solve(self, problem: FluidInclusionProblem, *, raise_on_failure: bool = True, tolerance: float = 1e-9, max_evaluations: int = 300) -> FluidInclusionResult:
         temperature_k = float(problem.temperature_c) + PUBLISHED_CELSIUS_OFFSET
-        reaction = self.repository.reaction(problem.equilibrium, temperature_k)
+        reaction = self._repository.reaction(problem.equilibrium, temperature_k)
 
         def residual(log_values: np.ndarray) -> np.ndarray:
             molalities = self._molalities(problem, log_values)
-            properties = self.calculator.calculate(molalities, temperature_k)
+            properties = self._calculator.calculate(molalities, temperature_k)
             return np.array([self._charge_balance(molalities), self._equilibrium_residual(reaction, properties)])
 
         optimization = least_squares(
@@ -197,7 +197,7 @@ class FluidInclusionSolver:
             max_nfev=max_evaluations,
         )
         molalities = self._molalities(problem, optimization.x)
-        properties = self.calculator.calculate(molalities, temperature_k)
+        properties = self._calculator.calculate(molalities, temperature_k)
         final_residual = residual(optimization.x)
         converged = bool(optimization.success and np.max(np.abs(final_residual)) <= max(tolerance * 10.0, 1e-8))
         diagnostics = SolverDiagnostics(
@@ -209,7 +209,12 @@ class FluidInclusionSolver:
             equilibrium_residual=float(final_residual[1]),
             residual_norm=float(np.linalg.norm(final_residual)),
         )
-        result = FluidInclusionResult(MappingProxyType(molalities), properties, reaction, diagnostics)
+        result = FluidInclusionResult(
+            MappingProxyType(molalities),
+            problem.equilibrium,
+            float(problem.temperature_c),
+            diagnostics,
+        )
         if raise_on_failure and not converged:
             raise ConvergenceError(f"Fluid-inclusion solver did not converge: {optimization.message}", result)
         return result

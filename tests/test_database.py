@@ -3,7 +3,7 @@ import sqlite3
 
 import pytest
 
-from pypitzer import DATABASE_SHA256, ParameterRepository
+from pypitzer._database import DATABASE_SHA256, ParameterRepository
 
 
 def test_database_snapshot_checksum_and_counts():

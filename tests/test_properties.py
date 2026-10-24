@@ -2,7 +2,8 @@ import math
 
 import pytest
 
-from pypitzer import ParameterNotFoundError, PropertyCalculator
+from pypitzer._database import ParameterNotFoundError
+from pypitzer._properties import PropertyCalculator
 
 
 def test_nacl_property_regression_at_25_celsius():

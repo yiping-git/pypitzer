@@ -1,6 +1,22 @@
 import pytest
 
+import pypitzer
 from pypitzer import FluidInclusionProblem, solve_fluid_inclusion
+
+
+def test_public_api_is_fluid_inclusion_only():
+    assert set(pypitzer.__all__) == {
+        "ConvergenceError",
+        "DEFAULT_ELEMENT_SPECIES",
+        "FluidInclusionProblem",
+        "FluidInclusionResult",
+        "FluidInclusionSolver",
+        "SolverDiagnostics",
+        "solve_fluid_inclusion",
+    }
+    assert not hasattr(pypitzer, "PropertyCalculator")
+    assert not hasattr(pypitzer, "PitzerProperties")
+    assert not hasattr(pypitzer, "ParameterRepository")
 
 
 def test_published_k_na_kcl_example():
@@ -39,7 +55,8 @@ def test_ice_last_melting_constraint():
     )
     assert result.diagnostics.converged
     assert result.molalities["Na+"] == pytest.approx(result.molalities["Cl-"])
-    assert result.properties.water_activity < 1.0
+    assert result.equilibrium == "H2O(s) = H2O(l)"
+    assert result.temperature_c == -10.0
 
 
 def test_element_ratios_are_converted_to_species_constraints():

@@ -12,7 +12,7 @@ from types import MappingProxyType
 from typing import Mapping
 
 from . import _equations
-from .core import BinaryParam, Ion, LambdaParam, PitzerInput, PsiParam, ThetaParam, ZetaParam
+from ._core import BinaryParam, Ion, LambdaParam, PitzerInput, PsiParam, ThetaParam, ZetaParam
 
 DATABASE_VERSION = "2026.1"
 DATABASE_SHA256 = "13a5c8ac3d6323218898ca85758f3ff67ba3235cd90148c492e4abf7aae2eadf"
