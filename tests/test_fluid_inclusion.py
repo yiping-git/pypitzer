@@ -16,6 +16,7 @@ def test_public_api_is_fluid_inclusion_only():
         "FluidInclusionResult",
         "FluidInclusionSolver",
         "LastMeltingPhase",
+        "MissingParameter",
         "SolverDiagnostics",
         "solve_fluid_inclusion",
         "supported_last_melting_phases",
@@ -86,6 +87,27 @@ def test_non_na_internal_standard():
     )
     assert result.diagnostics.converged
     assert result.molalities["Na+"] / result.molalities["K+"] == pytest.approx(0.5)
+
+
+def test_missing_parameters_are_structured_and_optionally_printed(capsys):
+    result = solve_fluid_inclusion(
+        FluidInclusionProblem(
+            ratios_to_internal_standard={"Ba+2": 0.01},
+            last_melting_phase="NaCl",
+            temperature_c=25.0,
+        ),
+        print_missing_parameters=True,
+    )
+
+    output = capsys.readouterr().out
+    assert "Missing Pitzer parameters at 298.16 K:" in output
+    assert "theta: Ba+2, Na+ (assumed 0)" in output
+    assert any(
+        parameter.kind == "theta"
+        and parameter.species == ("Ba+2", "Na+")
+        and parameter.assumed_zero
+        for parameter in result.missing_parameters
+    )
 
 
 def test_supported_phases_are_discoverable_for_pysills():

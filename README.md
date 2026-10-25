@@ -37,6 +37,18 @@ print(result.molalities)
 print(result.diagnostics)
 ```
 
+To inspect interaction parameters absent from the database for this problem,
+enable the one-time preflight report:
+
+```python
+result = solve_fluid_inclusion(problem, print_missing_parameters=True)
+```
+
+Missing required cation-anion binary parameters still stop the calculation.
+Optional missing `theta`, `psi`, `lambda`, and `zeta` interactions are reported
+as assumed zero. The same structured entries are available from
+`result.missing_parameters` for use by applications without parsing text.
+
 This published regression gives approximately 1.84526 mol/kg Na,
 3.69052 mol/kg K, and 5.53578 mol/kg Cl. Fluid-inclusion temperatures retain
 the published implementation's 273.16 Celsius-to-Kelvin offset for exact

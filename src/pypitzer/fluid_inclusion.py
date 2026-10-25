@@ -131,11 +131,25 @@ class SolverDiagnostics:
 
 
 @dataclass(frozen=True)
+class MissingParameter:
+    """An interaction absent from the database for a solver problem."""
+
+    kind: str
+    species: tuple[str, ...]
+    required: bool = False
+
+    @property
+    def assumed_zero(self) -> bool:
+        return not self.required
+
+
+@dataclass(frozen=True)
 class FluidInclusionResult:
     molalities: Mapping[str, float]
     last_melting_phase: str
     temperature_c: float
     diagnostics: SolverDiagnostics
+    missing_parameters: tuple[MissingParameter, ...] = ()
 
     def require_converged(self) -> "FluidInclusionResult":
         if not self.diagnostics.converged:
@@ -217,11 +231,42 @@ class FluidInclusionSolver:
             ln_q += coefficient * (math.log(molality) + properties.ln_activity_coefficients[formula])
         return float(reaction.ln_k - ln_q)
 
-    def solve(self, problem: FluidInclusionProblem, *, raise_on_failure: bool = True, tolerance: float = 1e-9, max_evaluations: int = 300) -> FluidInclusionResult:
+    @staticmethod
+    def _print_missing_parameters(
+        missing: tuple[MissingParameter, ...], temperature_k: float
+    ) -> None:
+        if not missing:
+            print(f"No missing Pitzer parameters at {temperature_k:g} K.")
+            return
+        print(f"Missing Pitzer parameters at {temperature_k:g} K:")
+        for parameter in missing:
+            suffix = "required" if parameter.required else "assumed 0"
+            print(f"  {parameter.kind}: {', '.join(parameter.species)} ({suffix})")
+
+    def solve(
+        self,
+        problem: FluidInclusionProblem,
+        *,
+        raise_on_failure: bool = True,
+        tolerance: float = 1e-9,
+        max_evaluations: int = 300,
+        print_missing_parameters: bool = False,
+    ) -> FluidInclusionResult:
         temperature_k = float(problem.temperature_c) + PUBLISHED_CELSIUS_OFFSET
         reaction = self._repository.phase_reaction(
             problem.last_melting_phase, temperature_k
         )
+        initial_molalities = self._molalities(
+            problem, np.log(np.asarray(problem.initial_molalities, dtype=float))
+        )
+        missing_parameters = tuple(
+            MissingParameter(kind, species, required)
+            for kind, species, required in self._repository.missing_parameters(
+                initial_molalities, temperature_k
+            )
+        )
+        if print_missing_parameters:
+            self._print_missing_parameters(missing_parameters, temperature_k)
 
         def residual(log_values: np.ndarray) -> np.ndarray:
             molalities = self._molalities(problem, log_values)
@@ -254,6 +299,7 @@ class FluidInclusionSolver:
             problem.last_melting_phase,
             float(problem.temperature_c),
             diagnostics,
+            missing_parameters,
         )
         if raise_on_failure and not converged:
             raise ConvergenceError(f"Fluid-inclusion solver did not converge: {optimization.message}", result)

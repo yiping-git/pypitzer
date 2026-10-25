@@ -228,6 +228,53 @@ class ParameterRepository:
             f"Last-melting phase {resolved_id!r} has no data at {temperature_k:g} K"
         )
 
+    def missing_parameters(
+        self, molalities: Mapping[str, float], temperature_k: float
+    ) -> tuple[tuple[str, tuple[str, ...], bool], ...]:
+        """Return absent interactions needed for a solution composition.
+
+        The boolean indicates whether the parameter is required. Optional
+        interactions are represented as zero by the calculation engine.
+        """
+        formulas = sorted(strip_state(name) for name in molalities)
+        cations = [name for name in formulas if charge_of(name) > 0]
+        anions = [name for name in formulas if charge_of(name) < 0]
+        neutrals = [name for name in formulas if charge_of(name) == 0]
+        missing: list[tuple[str, tuple[str, ...], bool]] = []
+
+        for pair in product(cations, anions):
+            row = self._binary_row(pair, temperature_k, required=False)
+            if row is None or not any(row[name] for name in ("b0", "b1", "b2", "c_phi")):
+                missing.append(("binary", tuple(pair), True))
+        for pair in list(combinations(cations, 2)) + list(combinations(anions, 2)):
+            row = self._binary_row(pair, temperature_k, required=False)
+            if row is None or not row["theta"]:
+                missing.append(("theta", tuple(pair), False))
+        for cation_i, cation_j in combinations(cations, 2):
+            group = (cation_i, cation_j)
+            for anion in anions:
+                species = (*group, anion)
+                row = self._ternary_row(species, temperature_k)
+                if row is None or not row["psi"]:
+                    missing.append(("psi", species, False))
+        for anion_i, anion_j in combinations(anions, 2):
+            group = (anion_i, anion_j)
+            for cation in cations:
+                species = (*group, cation)
+                row = self._ternary_row(species, temperature_k)
+                if row is None or not row["psi"]:
+                    missing.append(("psi", species, False))
+        for neutral, ion in product(neutrals, cations + anions):
+            species = (neutral, ion)
+            row = self._binary_row(species, temperature_k, required=False)
+            if row is None or not row["lambda"]:
+                missing.append(("lambda", species, False))
+        for species in product(neutrals, cations, anions):
+            row = self._ternary_row(species, temperature_k)
+            if row is None or not row["zeta"]:
+                missing.append(("zeta", tuple(species), False))
+        return tuple(missing)
+
     def pitzer_input(self, molalities: Mapping[str, float], temperature_k: float) -> tuple[PitzerInput, Mapping[str, int]]:
         """Resolve formula-keyed molalities into a complete typed calculator input."""
         if temperature_k <= 0.0:
